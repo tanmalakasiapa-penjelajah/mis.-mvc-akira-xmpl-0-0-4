@@ -1,0 +1,182 @@
+================================================================================
+WALKTHROUGH — CONTROLLER (HTTP Layer: Program.cs + Controllers per service)
+Proyek : mvc-akira-xmpl-0-0-4 (CQRS + JWT)
+================================================================================
+
+Arsitektur CQRS: Read side (BacaService) dipisah dari Write side (TulisService)
+yang "origin"nya Controller di service terpisah. Diagram service-port:
+
+    Port 5001  MvcAkira.Auth      (login/register/logout + JWT)
+    Port 5002  MvcAkira.Read      (semua query/list + trash + dashboard)
+    Port 5003  MvcAkira.Write     (semua perintah CRUD + soft-delete/dst)
+    Port 5004  MvcAkira.Frontend  (SPA static files)
+
+Shared dipakai oleh semua (Program.cs masing-masing call AddAkiraShared).
+
+--------------------------------------------------------------------------------
+1. PROGRAM.CS — BOOTSTRAP SETIAP SERVICE
+--------------------------------------------------------------------------------
+Tiap service (Auth/Read/Write) intinya AKAN SAMA:
+  var builder = WebApplication.CreateBuilder(args);
+  builder.Host.UseSerilog(... logs/XXX.log ...);
+  builder.Services.AddOpenApi();
+  builder.Services.AddControllers();
+  builder.Services.AddAkiraShared(builder.Configuration);   // EF + otoritas + log
+  builder.Services.AddAkiraJwt(builder.Configuration);      // JWT bearer auth
+  builder.Services.AddHealthChecks();
+  builder.Services.AddCors("mycors": AllowAnyOrigin/Header/Method);
+
+  app = builder.Build();
+  if (Development) { MapOpenApi; MapScalarApiReference; }  // docs UI
+  app.UseSerilogRequestLogging();
+  app.UseMiddleware<ApiExceptionMiddleware>();   // Read & Write
+  app.UseRouting(); UseCors; UseAuthentication; UseAuthorization;
+  app.MapControllers(); MapHealthChecks("/health");
+
+  // Pada startup: migrate + seed (idempoten).
+  using scope -> AkiraDbContext -> Database.MigrateAsync + Seeder.SeedAsync
+  app.Run();
+
+Catatan per-service:
+- Auth (5001): memakai AddJwtService + JwtService singleton + AddAkiraJwt;
+  Ada rate limiter (login 10/menit, default 120/menit), CORS (AllowAny);
+  tidak memakai ApiExceptionMiddleware (AuthResult respons model).
+- Read (5002) & Write (5003): pasang ApiExceptionMiddleware SEBELUM routing
+  supaya ApiException -> HTTP dengan {error,message} bukan 500.
+- Frontend (5004): HANYA static files (UseDefaultFiles, UseStaticFiles,
+  MapFallbackToFile("index.html")) — semua logika di SPA JS.
+
+--------------------------------------------------------------------------------
+2. MvcAkira.Auth/Controllers/AuthController.cs  (route: /api/auth)
+--------------------------------------------------------------------------------
+- [ApiController] tanpa [Authorize] di kelas; metode login/register diberi
+  [AllowAnonymous], logout [Authorize].
+- login:
+     cari pengguna by email (softdeleted=0) -> BCrypt.Verify(password)
+     -> cek Nonaktif==0 -> Otoritas.BolehLoginAsync(user code)
+     -> GetAksesContextAsync (baca biodata, cari toko/jabatan)
+     -> isSuper jika jabatan == "developer"
+     -> JwtService.Generate(...) -> token
+     -> LogService.CatatAsync(LogAksi.Login, ...)
+     -> AuthResult(true, token, email, nama, tokoName, isSuper)
+- register:
+   - jika email sudah ada -> 409 (Conflict)
+   - CodeGenerator.Next("meja_pengguna"); hash password;
+   - tidak ada hak assign otomatis -> akun menunggu admin grant hak:
+     AuthResult(true, Error:"akun dibuat, tunggu admin memberikan hak akses")
+   - Log create.
+- logout:
+   - (Authorize) CatatAsync(Logout); return {message:"berhasil logout"}.
+- private GetAksesContextAsync -> cek biodata tidak softdeleted,
+   maka kembalikan (Fullname, TokoCode, TokoName, JabatanName, isSuper).
+
+Endpoint:
+  POST /api/auth/login
+  POST /api/auth/register
+  POST /api/auth/logout
+
+--------------------------------------------------------------------------------
+3. MvcAkira.Read/Controllers/ReadController.cs  (route: /api)
+--------------------------------------------------------------------------------
+Dilindungi [Authorize] di kelas. Tanpa kecuali, setiap action memanggil
+BacaService.CekBacaAsync(CoreTables.X, ct); jika tidak Boleh -> Forbid().
+
+  GET  /api/dashboard               -> BacaService.DashboardAsync
+  GET  /api/meja_toko               -> ListToko
+  GET  /api/meja_toko/detail?code=  -> DetailToko
+  GET  /api/meja_toko/trash         -> TrashToko
+  GET  /api/meja_jabatan[trash]     -> ListJabatan/TrashJabatan
+  GET  /api/meja_target[trash]      -> ListTarget/TrashTarget
+  GET  /api/meja_pengguna[trash]    -> ListPengguna/TrashPengguna
+  GET  /api/meja_biodata[trash]     -> ListBiodata/TrashBiodata
+  GET  /api/meja_hakakses[trash]    -> ListHakakses/TrashHakakses
+  GET  /api/meja_keuangan[trash]    -> ListKeuangan/TrashKeuangan
+  GET  /api/meja_log?dari=&sampai=  -> ListLog (bisa filter tanggal)
+[baru] Semua /trash adalah hasil penambahan hari ini.
+
+Format respons list = PageResult. Detail = single View (null -> NotFound).
+
+--------------------------------------------------------------------------------
+4. MvcAkira.Write/Controllers/WriteController.cs  (route: /api)
+--------------------------------------------------------------------------------
+[Authorize] di seluruh controller; delegasi semua operasi ke TulisService;
+helper Res(HasilTulis r) -> Ok({kode}) / StatusCode(r.Status,{pesan,kode}).
+
+Endpoint utama:
+  TOKO
+    POST /api/meja_toko                (TokoBody: name,address,email,phone)
+    PUT  /api/meja_toko                (TokoBody + code)
+    POST /api/meja_toko/soft-delete    (body JSON string code)
+    POST /api/meja_toko/restore        (body JSON string code)
+    DELETE /api/meja_toko/permanent    (body JSON string code)
+
+  JABATAN
+    POST /api/meja_jabatan             (body = [FromBody] string name)
+    PUT  /api/meja_jabatan             (JabatanBody {Code,Name})
+    POST .../meja_jabatan/soft-delete|restore ; DELETE .../permanent
+
+  TARGET
+    POST /api/meja_target              (TargetBody {Name,Keterangan})
+    PUT  /api/meja_target              (TargetBody + Code)
+    POST .../target/soft-delete|restore ; DELETE .../permanent
+
+  PENGGUNA
+    POST /api/meja_pengguna            (PenggunaBody{email,password})
+    PUT  /api/meja_pengguna            (PenggunaBody + Code + nonaktif)
+    POST /api/meja_pengguna/nonaktif   (NonaktifBody {code, nonaktif})
+    POST /api/meja_pengguna/reset-password (ResetBody {code,password})
+    POST .../soft-delete|restore ; DELETE .../permanent
+
+  BIODATA
+    POST /api/meja_biodata      (BiodataBody: penggunaCode,tokoCode,
+                                 jabatanCode, fullname, born, address, phone)
+    PUT  /api/meja_biodata      (add Code; update field saja)
+    POST .../soft-delete|restore ; DELETE .../permanent
+
+  HAK AKSES
+    POST /api/meja_hakakses     (HakaksesBody: penggunaCode,targetCode,
+                                 read,create,update,delete,login)  -> UPSERT
+    POST /api/meja_hakasks/soft-delete|restore; DELETE .../permanent
+
+  KEUANGAN
+    POST/PUT /api/meja_keuangan (KeuanganBody berisi code bila PUT)
+    POST .../soft-delete|restore ; DELETE .../permanent
+
+Body record dideklarasikan di file yang sama:
+  TokoBody, JabatanBody, TargetBody, NonaktifBody, ResetBody, PenggunaBody,
+  BiodataBody, HakaksesBody, KeuanganBody (field selalu nullable kecuali
+  flags).
+
+catatan penting:
+- Untuk POST /meja_jabatan, body yang berdiri sendiri adalah string —
+  pastikan dikirim ter-quote (JSON string).
+- Soft-delete/restore/permanent menerima `[FromBody] string code`
+  (JSON-quoted string), BUKAN objek {code}.
+- Hakakses pakai POST (upsert) untuk tambah MAUPUN ubah.
+
+--------------------------------------------------------------------------------
+5. MIDDLEWARE & RESPONSE
+--------------------------------------------------------------------------------
+ApiExceptionMiddleware (Shared/Services): menangkap ApiException -> ubah ke
+HTTP status + JSON {error:..., message:...} supaya skena 4xx yang ramah,
+tidak 500. Dipasang di Read & Write.
+
+HasilTulis (TulisService) -> dipetakan controller Res() -> Ok/400/403/404/409.
+
+Error Codes (SharedErrorCodes):
+  BELUM_LOGIN, TIDAK_PUNYA_HAK, TIDAK_DITEMUKAN, DATA_TIDAK_LENGKAP,
+  KONFLIK, ISOLASI.
+
+--------------------------------------------------------------------------------
+6. SELURUH PILIHAN ROUTE — TIPS UJI
+--------------------------------------------------------------------------------
+Cara cepat verifikasi semuanya:
+  1) login superuser -> dapat token .
+  2) list aktif:    curl -H "Authorization: Bearer $TOKEN" localhost:5002/api/meja_toko
+  3) list sampah:   ... /meja_toko/trash
+  4) soft-delete:   POST :5003/api/meja_toko/soft-delete -d '"KODE"' -H json
+  5) restore:       POST .../restore -d '"KODE"'
+  6) permanent:     DELETE .../permanent -d '"KODE"'
+  7) update:        PUT .../meja_toko -d '{"code":"...","name":"Baru",...}'
+
+======================= end of controller.txt =====================================

@@ -1,0 +1,132 @@
+================================================================================
+LAPORAN PEKERJAAN — mvc-akira-xmpl-0-0-4 (Lemari Akira)
+Tanggal : 2026-08-08
+Proyek  : auth-jwt-cqrs/mvc-akira-xmpl-0-0-4
+Lokasi  : /home/laraveldotnetasp/TempatkuBelajar/auth-jwt-cqrs/mvc-akira-xmpl-0-0-4
+================================================================================
+
+1. TUGAS HARI INI
+--------------------------------------------------------------------------------
+a. Audit perilaku soft-delete ("Sampah") di seluruh tabel.
+b. Membangun halaman khusus "Sampah" sebagai satu tempat melihat semua data
+   soft-deleted, dipecah per tabel (tab), dengan aksi Pulihkan (restore)
+   dan Hapus Selamanya (permanent).
+c. Melengkapi CRUD (Tambah + Ubah) untuk semua tabel di halaman biasa,
+   termasuk preview modal (Lihat), dengan penghapusan yang masuk keranjang
+   sampah (soft-delete), bukan hapus permanen.
+d. Menyelaraskan frontend agar cocok dengan pola request `[FromBody] string`
+   backend (code dikirim sebagai STRING JSON, bukan objek {"code": ...}).
+
+2. YANG SUDAH DIKERJAKAN
+--------------------------------------------------------------------------------
+### Backend (Shared / Read / Write)
+
+  BacaService.cs  (src/MvcAkira.Shared/Services/)
+    - Tambah method query untuk data sampah:
+        TrashJabatan, TrashTarget, TrashPengguna, TrashBiodata,
+        TrashHakakses, TrashKeuangan
+      (TrashToko untuk meja_toko sudah ada sejak sebelumnya).
+    - Semua query menerima ListQuery (page/limit/search dll) dan hasil
+      PageResult<T> — sama seperti list aktif.
+
+  ReadController.cs  (src/MvcAkira.Read/Controllers/)
+    - Menambah endpoint GET untuk tiap tabel:
+        GET /api/meja_toko/trash        (sudah ada)
+        GET /api/meja_jabatan/trash
+        GET /api/meja_target/trash
+        GET /api/meja_pengguna/trash
+        GET /api/meja_biodata/trash
+        GET /api/meja_hakakses/trash
+        GET /api/meja_keuangan/trash
+    - Semua dilindungi otorisasi via BacaService.CekBacaAsync.
+
+  TulisService.cs  (src/MvcAkira.Shared/Services/)
+    - Menambah operasi CRUD yang sebelumnya TIDAK ada:
+        CreatePenggunaAsync   — buat akun baru (hash password)
+        UpdatePenggunaAsync   — ubah email + flag nonaktif
+        UpdateJabatanAsync    — ubah nama jabatan
+        UpdateTargetAsync     — ubah nama + keterangan
+        UpdateBiodataAsync    — ubah nama/born/address/phone
+    - Menambah operasi sampah untuk pengguna dan hak akses:
+        SoftDeletePenggunaAsync / RestorePenggunaAsync / PermanentPenggunaAsync
+        SoftDeleteHakaksesAsync / RestoreHakaksesAsync / PermanentHakaksesAsync
+    - Guard ANTI_ORPHAN: pengguna yang masih memiliki meja_hakakses AKTIF
+      TIDAK BOLEH di-soft-delete (ditolak 409). Saat dilepas, pengguna juga
+      diset PenggunaNonaktif=1.
+    - Catatan: meja_log TIDAK punya sampah (read-only) karena merupakan
+      catatan audit.
+
+  WriteController.cs  (src/MvcAkira.Write/Controllers/WriteController.cs)
+    - Route tambahan (semua [Authorize]):
+        PUT  /api/meja_jabatan        (update)
+        POST & PUT /api/meja_pengguna (create/update)
+        PUT  /api/meja_target         (update)
+        PUT  /api/meja_biodata        (update)
+        POST /api/meja_pengguna/restore
+        DELETE /api/meja_pengguna/permanent
+        POST /api/meja_hakakses/restore
+        DELETE /api/meja_hakakses/permanent
+    - record body baru: JabatanBody, TargetBody, PenggunaBody, BiodataBody.
+
+### Frontend (src/MvcAkira.Frontend/wwwroot/)
+
+  config.js  — ditulis ulang secara menyeluruh.
+    - Setiap tabel sekarang punya daftar kolom, form (Tambah/Ubah),
+      fungsi `buat` dan `ubah`, serta flag `hapus: true`.
+    - Meliputi 8 tabel: dashboard, toko, pengguna, biodata, jabatan,
+      target, hak akses, keuangan, log (read-only).
+    - BATAS_HALAMAN = [5, 25, 50, 75, 100].
+
+  app.js  — fitur halaman Sampah (route 'sampah'):
+    - MENU_GROUPS: baris baru "Sampah".
+    - TRASH_TABLES: daftar tabel yang punya sampah
+      (toko, pengguna, biodata, jabatan, target, hakakses, keuangan).
+    - State TRASH { tab, page, limit, totalPages, rows }.
+    - loadTrash() / goTrash() / goTrashPage() / renderTrashTable() /
+      renderTrashPagination() / restoreTrash() / permanentTrash().
+    - renderTable(): tombol "Sampah" di halaman normal hanya muncul jika
+      `k.hapus !== false` (jadi meja_log / read-only tidak punya).
+    - softDelete() sekarang mengirim code sebagai JSON string dengan header
+      'Content-Type: application/json' — FIX untuk bug body-string.
+
+  style.css — menambah style tab sampah (.trash-tabs / .trash-tab).
+
+### Test otomatis (tests/MvcAkira.Tests/)
+    - TulisServiceTests: 12 test baru:
+        * UpsertHakakses (404 user/target ghost, + sukses)
+        * Soft-delete pengguna dengan hakakses AKTIF → ditolak 409
+        * Alur soft-delete → (nonaktif) → restore → permanent (pengguna)
+        * Alur soft-delete → restore → permanent (hakakses)
+        * CreatePengguna (hash password terverifikasi)
+        * UpdatePengguna (email + nonaktif tersimpan)
+        * UpdateJabatan / UpdateTarget / UpdateBiodata
+    - Hasil: 49 test lolos (semua hijau).
+    - Build: Shared, Auth, Read, Write, Frontend — semua sukses.
+
+### Menjalankan ulang layanan
+    - stop-watch.sh + run-watch.sh untuk memuat perubahan backend secara
+      penuh (dotnet watch hot-reload tidak cukup untuk tipe baru).
+    - Verifikasi curl: semua endpoint sampah 200; CRUD pengguna/jabatan/
+      target create & update 200; data uji dibersihkan.
+
+--------------------------------------------------------------------------------
+3. HASIL VERIFIKASI AKHIR (data, setelah semua aksi)
+--------------------------------------------------------------------------------
+  meja_toko      : aktif = 7,   sampah = 0
+  meja_pengguna  : aktif = 9,   sampah = 0
+  meja_biodata   : aktif = 9,   sampah = 0
+  meja_jabatan   : aktif = 5,   sampah = 0
+  meja_target    : aktif = 8,   sampah = 0
+  meja_hakakses  : aktif = 13,  sampah = 0
+  meja_keuangan  : aktif = 2,   sampah = 0
+
+--------------------------------------------------------------------------------
+4. REKOMENDASI / NEXT (belum dikerjakan)
+--------------------------------------------------------------------------------
+- Verifikasi UI browser headless tidak dilakukan karena engine Zen (Firefox)
+  sedang dipakai; cukup verifikasi via curl + syntax check JS.
+- Opsional: tambah filter rentang waktu (dari/sampai) pada halaman Sampah —
+  belum ada.
+- Data uji yang dibuat selama sesi sudah dibersihkan habis.
+
+----------------------- end of report ------------------------------------------

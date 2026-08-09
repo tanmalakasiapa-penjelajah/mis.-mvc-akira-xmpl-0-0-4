@@ -1,0 +1,126 @@
+================================================================================
+CATATAN BUG — mvc-akira-xmpl-0-0-4 (Lemari Akira)
+Dikumpulkan : 2026-08-08
+================================================================================
+
+Daftar bug yang ditemukan selama pengembangan & audit soft-delete, beserta
+solusinya. Urut dari yang paling berdampak.
+
+================================================================================
+BUG 1 — Soft-delete dari frontend selalu gagal HTTP 400
+      ("'c' is an invalid start of a value")
+================================================================================
+Gejala:
+  Tombol "Sampah" (soft-delete) di halaman biasa tidak berfungsi. Browser
+  menampilkan toast error dan data tidak pindah ke sampah. Di devtools/log
+  terlihat HTTP 400 dengan pesan seperti "'c' is an invalid start of a value".
+
+Akar penyebab:
+  Backend menerima kode via `[FromBody] string code`. Artinya body harus
+  berupa SATU STRING JSON (ter-quote):
+      BENAR :   "KODE-HEX-123"
+      SALAH :   KODE-HEX-123   <== dikirim apa adanya, parser gagal
+  Frontend sebelumnya mengirim kode mentah tanpa tanda kutip, sehingga
+  parser JSON gagal pada huruf pertama (yang menyalahkan karakter 'K').
+
+Solusi (frontend, src/MvcAkira.Frontend/wwwroot/js/app.js):
+  Ubah pemanggilan soft-delete menjadi:
+      WRITE.post(route + '/soft-delete',
+                 JSON.stringify(code),
+                 { headers: { 'Content-Type': 'application/json' } });
+
+  Pola yang sama diterapkan juga di:
+      - restoreTrash()      -> WRITE.post(..., JSON.stringify(code), ...)
+      - permanentTrash()    -> WRITE.delete(..., { data: JSON.stringify(code) })
+      - create jabatan di config.js (body berupa string -> JSON.stringify)
+
+Kesimpulan umum:
+  Setiap endpoint dengan `[FromBody] string code` WAJIB dikirim sebagai
+  JSON string (ter-quote) dari klien, BUKAN objek {"code": "..."}.
+
+================================================================================
+BUG 2 — EF Core "could not be translated" -> HTTP 500 (list ber-relasi)
+================================================================================
+Gejala:
+  - List meja_keuangan / meja_biodata / meja_hakakses / meja_log kadang
+    error 500 "could not be translated", khususnya saat filter + order +
+    page digabung.
+
+Akar masalah:
+  - OrderBy/Page/Select dilakukan PADA hasil proyeksi (record hasil
+    Select(...)) sehingga EF tidak bisa menerjemahkan pengurutan ke SQL.
+    Sebelumnya:
+        query.Select(new {...}).OrderBy(...).Page(...)  -> error
+
+Solusi (src/MvcAkira.Shared/Services/BacaService.cs):
+  - Ubah urutan query: filter + order + paging dikerjakan TERLEBIH DAHULU
+    pada IQueryable entitas, baru proyeksi final dengan .Select(...) di akhir.
+  - Query menjadi translatable dan semua list kembali HTTP 200.
+
+Catatan:
+  Uji kasir -> buat keuangan milik toko lain => 403 (isolasi benar), tapi
+  bug translasi ini menyebar ke seluruh list ber-relasi.
+
+================================================================================
+BUG 3 — Error sintaks deklarasi update (semicolon duplikat)
+================================================================================
+Gejala:
+  - PUT /api/meja_jabatan dan /api/meja_target error 500 saat dijalankan;
+    syntax C# tidak valid ketika dideklarasikan record body.
+
+Akar masalah:
+  - Tercatat ";" duplikat pada deklarasi method (kesalahan saat menulis),
+    misal `UpdateJabatanAsync(body.Code!, body.Name!, ct)` tertulis dengan
+    dua titik koma / semikolon ganda sehingga tidak lolos kompilasi.
+
+Solusi:
+  - Bersihkan penulisan:
+        public Task<HasilTulis> UpdateJabatanAsync(string code, string name, ct)
+        => Res(await _tulis.UpdateJabatanAsync(body.Code!, body.Name!, ct));
+  - Build lolos, PUT meja_jabatan / meja_target kembali HTTP 200.
+
+================================================================================
+BUG 4 — Tombol "Sampah" muncul untuk meja_log (read-only)
+================================================================================
+Gejala:
+  - Halaman meja_log menampilkan tombol Sampah (soft-delete) padahal meja_log
+    adalah catatan audit read-only dan tidak punya route soft-delete (404).
+
+Akar masalah:
+  - renderTable() menampilkan tombol berdasarkan flag readOnly/buat untuk
+    semua tabel; log tidak memiliki route sampah.
+
+Solusi (app.js renderTable()):
+  Hanya tampilkan tombol jika:
+      bolehTulis() && !k.readOnly && k.hapus !== false
+  - meja_log (readOnly) -> tanpa tombol Sampah.
+  - Tabel dengan hapus:false -> tanpa tombol.
+
+================================================================================
+BUG 5 — dotnet watch tidak memuat tipe/route baru (perlu restart penuh)
+================================================================================
+Gejala:
+  - Setelah menambah .cs berisi record body / route baru, service lama tetap
+    merespon 404 padahal file sudah berubah.
+
+Akar masalah:
+  - `dotnet watch run` tidak selalu meng-reattach binary saat Shared project
+    memperkenalkan tipe/assembly baru; DLL baru terkunci.
+
+Solusi (operasional):
+  - Untuk PERUBAHAN yang menambah type/route baru, jalankan restart penuh:
+        ./stop-watch.sh
+        ./run-watch.sh   (atau ./run.sh untuk mode normal)
+  - Cukup edit kecil boleh dibiarkan watch, tapi untuk file baru wajib
+    restart penuh seperti di atas.
+
+================================================================================
+LAMPIRAN — Konvensi & kredensial verifikasi
+================================================================================
+- Login superuser : kobo.kanaeru@developer.com / kobopawanghujan
+- Login kasir     : kasir.pepper.lunch.mog@gmail.com / 12345678
+- Token JWT       : simpan -> /tmp/opencode/token.txt
+- Body string     : curl -d "\"KODE...\"" (JSON ter-quote)
+- Limit diizinkan : 5, 25, 50, 75, 100 (selain itu HTTP 400)
+
+----------------------- end of bug ---------------------------------------------

@@ -1,0 +1,176 @@
+================================================================================
+SKETSA POHON FILE — mvc-akira-xmpl-0-0-4 (Lemari Akira)
+Susunan folder tree lengkap + kegunaan tiap file.
+================================================================================
+
+TempatkuBelajar/
+└── auth-jwt-cqrs/
+    └── mvc-akira-xmpl-0-0-4/
+        ├── mvc-akira-xmpl-0-0-4.slnx      → file solution (referensi proyek).
+        ├── dotnet-tools.json              → manifest tool dotnet (opsional).
+        │
+        ├── run.sh              → skrip : jalankan 4 service (dotnet run) normal
+        │                        di background, log ke logs/*.log, lalu cek
+        │                        /health tiap port. Memanggil stop-watch.sh dulu.
+        ├── run-watch.sh        → skrip : jalankan 4 service dengan `dotnet watch`
+        │                        (auto-reload saat source berubah), log ke
+        │                        logs/watch-*.log.
+        └── stop-watch.sh       → skrip : matikan SEMUA proses MvcAkira.*
+                                  (dotnet run / dotnet watch / binary sisa)
+                                  lalu tampilkan proses yang tersisa.
+        │
+        ├── data/
+        │   └── akira-0-0-4.db  → database SQLite TUNGGAL yang dipakai semua
+        │                          service (lokasi di-resolve otomatis).
+        │
+        ├── logs/               → log runtime dari skrip run (taruh di sini):
+        │                          Auth.log, Read.log, Write.log, Frontend.log
+        │                          + watch-*.log.
+        │
+        ├── docs/
+        │   ├── README.md       → README: ringkasan proyek, struktur, cara
+        │   │                      jalankan, akun seeder, endpoint inti.
+        │   └── plan/
+        │       ├── plan-0-0-1.txt  → blueprint iterasi 1: entitas dasar, seeder,
+        │       │                       isolasi toko, dll.
+        │       ├── plan-0-0-2.txt  → blueprint iterasi 2: hak akses/otoritas.
+        │       └── plan-0-0-3.txt  → blueprint iterasi 3: dashboard & selesai.
+        │
+        ├── pending/
+        │   └── CATATAN-PROGRES.md → status pekerjaan terakhir, apa yang sudah/
+        │                              belum, next step.
+        │
+        ├── src/
+        │   │
+        │   ├── MvcAkira.Shared/            ← Model & layanan bersama semua service
+        │   │   ├── MvcAkira.Shared.csproj  → referensi NuGet & IIS EF.
+        │   │   ├── DbPath.cs               → lokasi absolut data/akira-0-0-4.db;
+        │   │   │                              cari folder berisi .slnx.
+        │   │   ├── Seeder.cs               → isi awal DB (5 jabatan, 3 toko,
+        │   │   │                              8 target, 9 akun, biodata, hak).
+        │   │   ├── SharedServiceCollectionExtensions.cs → AddAkiraShared()
+        │   │   │                              (EF + otoritas + log + baca/tulis)
+        │   │   │                              dan AddAkiraJwt() (JWT Bearer).
+        │   │   │
+        │   │   ├── Contracts/
+        │   │   │   └── Contracts.cs      → DTO: PageResult<T>, ListQuery
+        │   │   │                             (Limit 5/25/50/75/100), AuthResult,
+        │   │   │                             View record + Mapper .ToView().
+        │   │   │
+        │   │   ├── Data/
+        │   │   │   ├── AkiraDbContext.cs  → DbSet 8 tabel + konfigurasi EF
+        │   │   │   │                          (PK code, MaxLength, index unik).
+        │   │   │   └── AkiraDbContextDesignFactory.cs → factory desain utk
+        │   │   │                              dotnet ef migrations.
+        │   │   │
+        │   │   ├── Entities/
+        │   │   │   ├── MejaToko.cs        → entitas toko.
+        │   │   │   ├── MejaPengguna.cs    → entitas akun/pengguna (pw hash).
+        │   │   │   ├── MejaBiodata.cs     → profil 1:1 + toko/jabatan.
+        │   │   │   ├── MejaJabatan.cs     → entitas jabatan.
+        │   │   │   ├── MejaTarget.cs      → entitas target (nama tabel).
+        │   │   │   ├── MejaHakakses.cs    → entitas pivot hak akses.
+        │   │   │   ├── MejaKeuangan.cs    → entitas keuangan/nominal.
+        │   │   │   └── MejaLog.cs         → entitas audit trail.
+        │   │   │
+        │   │   ├── Enums/
+        │   │   │   └── Constants.cs       → KeuanganStatus, KeuanganTempat,
+        │   │   │                              LogAksi, HakAksi, JabatanNama,
+        │   │   │                              (constants string).
+        │   │   │
+        │   │   ├── Security/
+        │   │   │   ├── CodeGenerator.cs    → Next(table) = timestamp+table+hex
+        │   │   │   │                          + DateStamp.Now().
+        │   │   │   ├── JwtConfig.cs       → konfig JWT (key, issuer, aud, exp).
+        │   │   │   ├── LogService.cs      → LogService.CatatAsync() → meja_log;
+        │   │   │   │                          SharedErrorCodes.
+        │   │   │   └── OtoritasService.cs → check hak (BolehBaca/BolehTulis),
+        │   │   │                              isolasi per toko, IsSuperuser,
+        │   │   │                              CoreTables, CurrentUserAccessor.
+        │   │   │
+        │   │   ├── Migrations/
+        │   │   │   ├── 20260807182639_Init.cs / .Designer.cs  → migrasi awal.
+        │   │   │   └── AkiraDbContextModelSnapshot.cs → snapshot skema.
+        │   │   │
+        │   │   └── Services/
+        │   │       ├── BacaService.cs    → READ side: ListToko/dst, Trash*,
+        │   │       │                          Detail*, DashboardAsync.
+        │   │       ├── TulisService.cs   → WRITE side: Create/Update, UpsertHak,
+        │   │       │                          SoftDelete/Restore/Permanent*.
+        │   │       └── ApiExceptionMiddleware.cs → tangkap ApiException → HTTP
+        │   │                                    + JSON {error,message}.
+        │   │
+        │   ├── MvcAkira.Auth/               ← SERVICE: AUTH (port 5001)
+        │   │   ├── MvcAkira.Auth.csproj
+        │   │   ├── Program.cs             → bootstrap Web API + seeder
+        │   │   │                            (JWT+rate limiting+CORS+health).
+        │   │   ├── appsettings.json / Development → konfig JWT:Key, Connection.
+        │   │   ├── Controllers/
+        │   │   │   └── AuthController.cs  → login / register / logout + JWT,
+        │   │   │                              cek hak login, log.
+        │   │   ├── Requests/
+        │   │   │   └── AuthRequests.cs    → LoginRequest / RegisterRequest.
+        │   │   └── Services/
+        │   │       └── JwtService.cs      → Generate JWT (claims pengguna).
+        │   │
+        │   ├── MvcAkira.Read/               ← SERVICE READ (port 5002)
+        │   │   ├── MvcAkira.Read.csproj
+        │   │   ├── Program.cs             → Startup (ApiExceptionMiddleware +
+        │   │   │                            JWT + static). 
+        │   │   └── Controllers/
+        │   │       └── ReadController.cs  → semua query: list/detail/trash/
+        │   │                                  dashboard; semua memakai atribut
+        │   │                                  [Authorize] + cek hak baca.
+        │   │
+        │   ├── MvcAkira.Write/              ← WRITE (port 5003)
+        │   │   ├── MvcAkira.Write.csproj
+        │   │   ├── Program.cs             → Startup + seeder (sama Read).
+        │   │   └── Controllers/
+        │   │       └── WriteController.cs → semua perintah CRUD + trash
+        │   │                                  (create/update/soft/restore/
+        │   │                                  permanent) per tabel + body records
+        │   │                                  (TokoBody, JabatanBody, dst).
+        │   │
+        │   └── MvcAkira.Frontend/          ← FRONTEND (port 5004)
+        │       ├── MvcAkira.Frontend.csproj
+        │       ├── Program.cs             → serve static files (SPA).
+        │       └── wwwroot/
+        │           ├── index.html         → halaman utama login/shell/modal.
+        │           ├── css/style.css      → tampilan lengkap.
+        │           └── js/
+        │               ├── config.js      → KONFIGURASI per tabel:
+        │               │                     kolom, form, buat/ubah, hapus,
+        │               │                     sensitif, readOnly.
+        │               ├── api.js         → axios instances READ(5002),
+        │               │                     WRITE(5003), AUTH(5001) +
+        │               │                     interceptor Bearer token.
+        │               └── app.js         → logika seluruh aplikasi: state,
+        │                                     sidebar, load list, form modal,
+        │                                     sampah/restore, dashboard.
+        │
+        └── tests/
+            └── MvcAkira.Tests/
+                ├── MvcAkira.Tests.csproj
+                ├── AkiraTestDb.cs          → helper: in-memory DB utk test.
+                ├── BacaServiceTests.cs     → unit test BacaService.
+                ├── KeuanganValidatorTests.cs → validasi status/tempat.
+                ├── ListQueryValidatorTests.cs → validasi Page/Limit/Allowed.
+                ├── OtoritasServiceTests.cs → test hak akses & isolasi.
+                └── TulisServiceTests.cs    → test CRUD/trash/upsert/guard.
+
+================================================================================
+KEGUNAAN TIAP FILE — POIN PENTING (ringkas)
+================================================================================
+  SlNx            ~ definisi solusi (referensi 5 proyek + test).
+  run*.sh         ~ jalankan/hentikan semua service; stop mematikan semua.
+  DbPath.cs       ~ kunci: menemukan file DB yang SAMA walau 4 proyek berbeda.
+  BacaService.cs  ~ SEMUA query (list + detail + trash + dashboard).
+  TulisService.cs ~ SEMUA penulisan (create/update/soft/restore/permanent).
+  ApiExceptionMiddleware → respons error 4xx yang ramah ({error,message}).
+  OtoritasService.cs → cek hak akses (BolehBaca/BolehTulis) + isolasi toko.
+  LogService.cs    → tiap aksi tulis otomatis masuk meja_log.
+  CodeGenerator.cs  → pembuat kode unik utk semua tabel.
+  app.js / config.js   → "otak" SPA, termasuk halaman sampah baru.
+  api.js               → akses endpoint + token.
+
+================= end of sketesa-pohon-file.txt ====================================

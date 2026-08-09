@@ -19,6 +19,10 @@ mvc-akira-xmpl-0-0-4/
 ├── data/akira-0-0-4.db     # database SQLite tunggal
 ├── docs/plan/              # blueprint trilogi (0-0-1 .. 0-0-3)
 ├── pending/CATATAN-PROGRES.md
+├── report/                 # ringkasan pekerjaan per hari
+├── bug/                    # daftar bug + solusi
+├── walktrough/             # penelusuran model/view/controller/service
+├── sketesa-pohon-file.txt  # tree + kegunaan tiap file
 ├── run.sh                  # jalankan semua service (normal)
 ├── run-watch.sh            # jalankan semua service (dotnet watch)
 └── stop-watch.sh           # matikan semua service
@@ -84,6 +88,12 @@ Write (`:5003`, `:Bearer`)
 - `POST/PUT /api/meja_keuangan` (+ soft-delete/restore/permanent)
 
 Catatan:
-- Teleport soft-delete (sampah) menerima `code` sebagai **JSON string**
-  (`-d "\"KODE\""`), bukan object `{"code": ...}`.
+- Soft-delete/restore/permanent menerima body objek `{"code": "KODE..."}`.
+- Create/update menggunakan objek DTO per tabel (mis. toko: `{"name": ...,
+  "address": ...}`; keuangan: `{"penggunaCode","tokoCode","nominal","judul",
+  "deskripsi","status","tempat","waktucatat"}`). Status: `masuk|keluar|hilang|
+  pindah`; tempat: `tunai|bank|ewallet|others`.
+- Skema DB memakai nama tabel `meja_*` + kolom snake_case (konvensi
+  `SnakeCaseColumnNameConvention`), contoh `toko_code`.
+- Migrasi + seed hanya dijalankan oleh Auth (:5001); Read/Write hanya migrate.
 - Semua aksi tulis & login dicatat ke `meja_log`.

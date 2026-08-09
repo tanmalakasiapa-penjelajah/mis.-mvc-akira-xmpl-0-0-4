@@ -1,0 +1,157 @@
+================================================================================
+WALKTHROUGH — MANUAL SERVICE
+Cara Menjalankan & Menghentikan Proyek mvc-akira-xmpl-0-0-4
+================================================================================
+Tujuan dokumen: panduan praktis menjalankan (dan menghentikan) service
+satu-per-satu ataupun sekaligus, sesuai port masing-masing.
+
+Lokasi proyek:
+  /home/laraveldotnetasp/TempatkuBelajar/auth-jwt-cqrs/mvc-akira-xmpl-0-0-4
+
+================================================================================
+0. Ringkasan Port
+================================================================================
+  Service            Port    Keterangan
+  -----------------  ------  -------------------------------------------------
+  MvcAkira.Auth      5001    login/register/logout (pembuat JWT)
+  MvcAkira.Read      5002    semua query + trash + dashboard
+  MvcAkira.Write     5003    semua command (CRUD + sampah)
+  MvcAkira.Frontend  5004    SPA (buat akses browser)
+
+Health check tiap service:  GET  <port>/health  -> 200
+
+Doc API (Scalar) bila DEVELOPMENT:
+  http://localhost:5001/scalar/v1
+  http://localhost:5002/scalar/v1
+  http://localhost:5003/scalar/v1
+
+================================================================================
+1. CARA CEPAT: Semua Sekaligus
+================================================================================
+  cd /home/laraveldotnetasp/TempatkuBelajar/auth-jwt-cqrs/mvc-akira-xmpl-0-0-4
+
+  # 1) mode normal (dotnet run, tanpa auto-reload):
+  ./run.sh
+
+  # 2) mode watch (auto-reload tiap file berubah; cocok utk dev):
+  ./run-watch.sh
+
+  # 3) hentikan semua:
+  ./stop-watch.sh
+
+- Log hasil ke: logs/*.log (system)  atau  logs/watch-*.log (watch).
+- Setelah start, cek:  for p in 5001 5002 5003 5004; do curl -sf :$p/health; done
+
+Catatan: run.sh / run-watch.sh menghentikan layanan lama lalu memulai semua.
+
+================================================================================
+2. MENJALANKAN SATU SERVICE (per port) — NORMAL MODE
+================================================================================
+Gunakan direktif --urls untuk memaksa port.
+
+  # Auth (5001):
+  dotnet run --project src/MvcAkira.Auth --urls http://localhost:5001
+
+  # Read (5002):
+  dotnet run --project src/MvcAkira.Read --urls http://localhost:5002
+
+  # Write (5003):
+  dotnet run --project src/MvcAkira.Write --urls http://localhost:5003
+
+  # Frontend (5004):
+  dotnet run --project src/MvcAkira.Frontend --urls http://localhost:5004
+
+Setiap perintah menempel di terminal (foreground) sampai di Ctrl+C.
+
+Jika ingin satu service jalan tanpa menahan terminal (background + log):
+  nohup dotnet run --project src/MvcAkira.Read \
+        --urls http://localhost:5002 > logs/Read.log 2>&1 &
+
+================================================================================
+3. WATCH MODE (satu service, auto-reload)
+================================================================================
+  dotnet watch run --project src/MvcAkira.Read --urls http://localhost:5002
+
+Buah model/data berubah -> aplikasi di-rebuild otomatis (restart).
+PENTING: jika menambah file .cs / tipe baru / route baru di Shared, jalankan
+restart penuh (Section 1) karena watch kadang tidak memuat binary baru.
+
+================================================================================
+4. MENGHENTIKAN SATU SERVICE
+================================================================================
+  # Foreground: cukup Ctrl+C di terminal proses itu.
+
+  # Background / tersesat proses:
+  # 1) Lihat proses dengan grep port/naam:
+      ps aux | grep -E "MvcAkira.(Auth|Read|Write|Frontend)" | grep -v grep
+  #    ATAU gunakan tool:  lsof -i :5002   (kalau tersedia)
+
+  # 2) Matikan dengan pkill berdasar nama project:
+      pkill -f "MvcAkira.Auth"
+      pkill -f "MvcAkira.Read"
+      pkill -f "MvcAkira.Write"
+      pkill -f "MvcAkira.Frontend"
+
+  # 3) Cek port sudah kosong:
+      curl -sf http://localhost:5002/health   # seharusnya gagal/timeout
+
+================================================================================
+5. STOP & RESTART PENUH (rekomendasi saat ada tipe/route baru)
+================================================================================
+      ./stop-watch.sh
+      ./run-watch.sh        # atau ./run.sh
+
+  stop-watch.sh membunuh semua proses MvcAkira.* (dotnet run/watch dan sisa
+  binary app). Lalu run ulang dengan build baru.
+
+  - Setelah memulai ulang, cek health per port:
+      for p in 5001 5002 5003 5004; do
+        echo -n "$p: "; curl -s -o /dev/null -w "%{http_code}\n" :$p/health
+      done
+
+================================================================================
+6. CEK DATABASE & MIGRASI
+================================================================================
+Database SQLite tunggal: data/akira-0-0-4.db (otomatis dibuat).
+Saat tiap service start menjalankan migrasi + seed (idempoten).
+Utk menambah migrasi baru (ubah entitas):
+  cd src/MvcAkira.Shared
+  dotnet ef migrations add <NamaMigrasi> --startup-project ../MvcAkira.Read
+  (harus ada dotnet-ef:        dotnet tool install --global dotnet-ef)
+Lalu untuk reflection di jalankan otomatis service.
+
+================================================================================
+7. MENJALANKAN TEST (otomatis)
+================================================================================
+  cd /home/laraveldotnetasp/TempatkuBelajar/auth-jwt-cqrs/mvc-akira-xmpl-0-0-4/tests/MvcAkira.Tests
+  dotnet test          # di dalam folder proyek test
+  # atau dari root:
+  dotnet test tests/MvcAkira.Tests
+
+  Hasil saat ini: 49 test (validator, otoritas, baca, tulis) semua lolos.
+
+================================================================================
+8. SKENARIO CURL Cepat untuk Buka UI/API
+================================================================================
+  login (ambil token):
+    curl -s -X POST http://localhost:5001/api/auth/login \
+      -H "Content-Type: application/json" \
+      -d '{"email":"kobo.kanaeru@developer.com","password":"kobopawanghujan"}'
+
+  list:
+    curl -s http://localhost:5002/api/meja_toko \
+      -H "Authorization: Bearer $TOKEN"
+
+  sampah:
+    curl -s http://localhost:5002/api/meja_toko/trash \
+      -H "Authorization: Bearer $TOKEN"
+
+  soft-delete (body JSON-string):
+    curl -s -X POST http://localhost:5003/api/meja_toko/soft-delete \
+      -H "Authorization: Bearer $TOKEN" -H "Content-Type: application/json" \
+      -d '"KODE-... "'
+                    (wajib tanda kutip di dalam body!)
+
+  URL browser utama: http://localhost:5004
+
+=================== end of manual-service.txt ====================================

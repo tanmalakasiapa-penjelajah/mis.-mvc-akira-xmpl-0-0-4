@@ -1,0 +1,152 @@
+================================================================================
+WALKTHROUGH — MODEL (Lapisan Data / Entitas / DTO / Service Bersama)
+Proyek : mvc-akira-xmpl-0-0-4 (CQRS + JWT + SQLite + EF Core 10)
+================================================================================
+
+Posisi file: src/MvcAkira.Shared/
+
+--------------------------------------------------------------------------------
+1. KONSEP MODEL DI PROYEK INI
+--------------------------------------------------------------------------------
+- "Model" di sini = ENTITAS (tabel), DbContext (EF Core), DTO/View, enum,
+  seeder, serta service query/tulis bersama.
+- Pola database "Lemari" (dari plan): 8 meja.
+  1. meja_toko        (toko/cabang)
+  2. meja_pengguna    (akun login, password ter-hash BCrypt)
+  3. meja_biodata     (profil 1:1 dengan pengguna; tahu toko + jabatan)
+  4. meja_jabatan     (jabatan: developer/admin/stockkeeper/kitchen/kasir)
+  5. meja_target      (nama-nama tabel sebagai target hak akses)
+  6. meja_hakakses    (pivot pengguna <-> target + flag aksi)
+  7. meja_keuangan    (transaksi nominal per toko)
+  8. meja_log         (audit trail semua aksi tulis & login)
+- Setiap tabel punya kolom soft-delete: {Tabel}Softdeleted (0/1).
+  "aktif" berarti Softdeleted == 0.
+
+--------------------------------------------------------------------------------
+2. POKOK FILE MODEL
+--------------------------------------------------------------------------------
+- Entities/MejaToko.cs
+    TokoCode / TokoName / TokoAddress / TokoEmail / TokoPhone
+    / TokoSoftdeleted / TokoCreatedat / TokoUpdatedat.
+
+- Entities/MejaPengguna.cs
+    PenggunaCode / PenggunaEmail / PenggunaPassword (hash BCrypt)
+    / PenggunaNonaktif / PenggunaSoftdeleted / PenggunaCreatedat
+    / PenggunaUpdatedat.
+
+- Entities/MejaBiodata.cs
+    BiodataCode / PenggunaCode / TokoCode / JabatanCode / BiodataFullname
+    / BiodataBorn / BiodataAddress / BiodataPhone / BiodataSoftdeleted
+    / BiodataCreatedat / BiodataUpdatedat.
+
+- Entities/MejaJabatan.cs, MejaTarget.cs, MejaKeuangan.cs, MejaLog.cs
+    - MejaJabatan : JabatanCode / JabatanName (+ timestamps, soft).
+    - MejaTarget  : TargetCode / TargetName / TargetKeterangan.
+    - MejaKeuangan: KeuanganCode / PenggunaCode / TokoCode / Nominal(decimal)
+      / Judul / Deskripsi / Status / Tempat / Waktucatat.
+    - MejaLog     : LogCode / LogPelaku / LogMencatat (aksi) / LogOldvalue
+      / LogNewvalue / LogTarget / ... (soft + timestamps).
+
+- Data/AkiraDbContext.cs — pusat konfigurasi EF:
+    - DbSet untuk 8 entity.
+    - OnModelCreating: primary key (code masing-masing), MaxLength(255),
+      HasDefaultValue(0) untuk softdelete/nonaktif.
+    - Index unik: pengguna.email, biodata.PenggunaCode, hakakses
+      (PenggunaCode + TargetCode). Index regular lain untuk search.
+    - Keuangan nominal memakai kolom NUMERIC.
+
+- Data/AkiraDbContextDesignFactory.cs — factory desain untuk migrations.
+
+--------------------------------------------------------------------------------
+3. CONTRACTS (DTO / View / Response)
+--------------------------------------------------------------------------------
+- Contracts/Contracts.cs
+    PageResult<T>   { List, Total, Page, Limit, TotalPages }
+    ListQuery       { Page, Limit, Search, Sort, Dir };
+                    AllowedLimits = { 5, 25, 50, 75, 100 }
+    AuthResult, PenggunaView, BiodataView, HakaksesView, KeuanganView,
+    TokoView, JabatanView, TargetView, LogView, DashboardView.
+    Mapper: extension .ToView() entitas -> View.
+
+Ringkasan bentuk reply:
+    GET /api/meja_toko        -> PageResult<TokoView>
+    GET /api/meja_toko/trash  -> PageResult<TokoView> (Softdeleted == 1)
+
+--------------------------------------------------------------------------------
+4. SECURITY / ENUM / JWT
+--------------------------------------------------------------------------------
+- Enums/Constants.cs
+    KeuanganStatus : masuk / keluar / hilang / pindah
+    KeuanganTempat : tunai / bank / ewallet / others
+    LogAksi        : create / update / login / logout / softdelete / restore / delete
+    HakAksi        : read / create / update / delete / login
+    JabatanNama    : developer / admin / stockkeeper / kitchen / kasir
+
+- Security/CodeGenerator.cs
+    Next(tableName) -> "yyyy/MM/dd/HH:mm:ss_{table}_HEX"   (kode unik)
+    DateStamp.Now() -> "yyyy-MM-dd HH:mm:ss"
+
+- Security/JwtConfig.cs — membaca Jwt:Key dari appsettings; SigningKey()
+    menghasilkan SymmetricSecurityKey.
+
+- Security/OtoritasService.cs
+    CurrentUser dari claims JWT.
+    IsSuperuserAsync / UserTokoCodeAsync / PunyaAksesDataTokoAsync /
+    BolehBacaAsync(name, aksi) / BolehTulisAsync.
+    HakFlagAsync: cek flag meja_hakakses per target-user.
+    IsMasterSensitif (toko/jabatan/target) -> hanya superuser boleh mengubah.
+    CoreTables: konstanta nama tabel.
+
+- Security/LogService.cs
+    CatatAsync(aksi, target, old, new) -> tulis baris ke meja_log.
+    Dipanggil di AuthController (login/logout) dan TulisService (semua aksi).
+
+--------------------------------------------------------------------------------
+5. SEEDER
+--------------------------------------------------------------------------------
+- Seeder.cs (idempoten — aman dijalankan setiap start):
+    5 jabatan  : developer, admin, stockkeeper, kitchen, kasir
+    3 toko     : developer, "pepper lunch mog", "kimukatsu mog"
+    8 target   : nama 8 tabel
+    9 akun     : 1 Kobo (superuser developer) + 4 PLMOG + 4 KMMOG
+    Biodata 1:1 per akun (menempel toko + jabatan)
+    Hakakses Kobo: read/create/update/delete/login = 1 untuk semua target
+  Kobo punya hak global; user lain tidak otomatis.
+
+--------------------------------------------------------------------------------
+6. BACA — READ SIDE (src/MvcAkira.Shared/Services/BacaService.cs)
+--------------------------------------------------------------------------------
+- ListToko / ListJabatan / ListTarget / ListPengguna / ListBiodata /
+  ListHakakses / ListKeuangan / ListLog — tiap method menerima ListQuery dan
+  mengembalikan PageResult<View>; cek hak via BolehBacaAsync(target).
+- Trash*: TrashToko, TrashJabatan, TrashTarget, TrashPengguna, TrashBiodata,
+  TrashHakakses, TrashKeuangan — seperti list aktif, hanya filter
+  Softdeleted == 1.
+- Detail*: DetailTokoAsync, DetailJabatanAsync, dst per kode.
+- DashboardAsync: jumlah toko/pengguna/biodata/jabatan/target + saldo per
+  tempat + saldo total (superuser global, user biasa per tokonya).
+- PENTING (BUG 2): order + filter + paging dilakukan SEBELUM proyeksi Select
+  final agar translatable oleh EF Core.
+
+--------------------------------------------------------------------------------
+7. TULIS — WRITE SIDE  (src/MvcAkira.Shared/Services/TulisService.cs)
+--------------------------------------------------------------------------------
+- Create/Update per tabel; UpsertHakakses (khusus upsert, tidak ada PUT).
+- Soft-delete / restore / permanent untuk semua master.
+- Tulis hanya boleh jika BolehTulisAsync (superuser atau flag hak aksi).
+- MasterData sensitif (Toko/Jabatan/Target) hanya superuser.
+- Pengguna yang masih punya hakakses AKTIF dilarang di-soft-delete
+  (409 ANTI_ORPHAN); saat dipindah ke sampah, PenggunaNonaktif = 1.
+- Keuangan tulis terkait toko (isolasi per toko).
+- Create pengguna: hash password (BCrypt); update: ganti email + nonaktif.
+
+--------------------------------------------------------------------------------
+8. DATABASE & MIGRASI
+--------------------------------------------------------------------------------
+- DbPath.cs — cari root repo berisi .slnx, DB di <root>/data/akira-0-0-4.db;
+  fallback ke AppContext.BaseDirectory/data.
+- Migrations/20260807182639_Init — snapshot skema awal.
+- Semua service memakai file DB yang SAMA.
+- Saat start tiap service: Database.MigrateAsync() + Seeder.SeedAsync().
+
+======================= end of model.txt ===========================================

@@ -62,9 +62,16 @@ Semua fungsionalitas inti selesai & teruji manual via curl :
 
 ## 3. CATATAN PENTING (bug/perilaku yang perlu diketahui)
 
-- Endpoint soft-delete/restore/permanent menerima `code` sebagai **JSON string**
-  (`-d "\"KODE...\""`), bukan objek. Body `[FromBody] string name` (create jabatan)
-  juga JSON string ter-quote.
+- Endpoint soft-delete/restore/permanent menerima body **objek**
+  (`-d '{"code":"KODE..."}'`), bukan JSON string. Body `[FromBody] string`
+  sudah diganti seluruhnya menjadi DTO (`KodeBody`/`TokoBody`/`JabatanBody`/...).
+- Skema DB memakai tabel `meja_*` + kolom snake_case (konvensi
+  `SnakeCaseColumnNameConvention`), contoh `toko_code`.
+- `UseSqlite` memakai `SqliteConnectionStringBuilder` (Shared), bukan string
+  raw. `LogService.Target` menghasilkan `meja_toko:<code>` (tanpa double prefix).
+- Migrasi + seed **hanya di Auth (:5001)**; Read/Write hanya migrate. Ini
+  menghindari race UNIQUE `pengguna_email` saat ketiga service start bersamaan
+  pada DB kosong.
 - `UpsertHakaksesAsync` MENIMPA seluruh flag baris; saat mengubah satu flag,
   sertakan kelima flag dari kondisi lama (baca dulu via Read).
 - `IsMasterSensitif` (Toko/Jabatan/Target) → boleh diubah hanya superuser.
@@ -109,5 +116,5 @@ mvc-akira-xmpl-0-0-4/
   docs/plan/ (plan-0-0-1..3 dari folder analisa)
   pending/   (dokumen ini)
   run.sh / run-watch.sh / stop-watch.sh
-  report/ bug/ walktrough/ + sketesa-pohon-file.txt (di ~/Dokumen/tempatku-belajar/...)
+  report/ bug/ walktrough/ + sketesa-pohon-file.txt (disalin ke root proyek)
 ```

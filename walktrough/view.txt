@@ -1,0 +1,144 @@
+================================================================================
+WALKTHROUGH — VIEW (Frontend SPA: HTML + CSS + JavaScript)
+Proyek : mvc-akira-xmpl-0-0-4 (CQRS + JWT)
+--------------------------------------------------------------------------------
+Frontend adalah SPA statis yang disajikan oleh MvcAkira.Frontend (port 5004).
+File berada di src/MvcAkira.Frontend/wwwroot/.
+
+--------------------------------------------------------------------------------
+1. STRUKTUR FILE VIEW
+--------------------------------------------------------------------------------
+wwwroot/
+  index.html        - kerangka halaman (login, shell, modal)
+  css/style.css     - seluruh tampilan
+  js/config.js      - konfigurasi tabel (kolom, form, fungsi buat/ubah, flag)
+  js/api.js         - instance axios (READ/WRITE/AUTH) + interceptor token
+  js/app.js         - seluruh logika aplikasi (state, render, aksi, sampah)
+
+Penjelasan tiap bagian ada di bawah.
+
+--------------------------------------------------------------------------------
+2. index.html — KERANGKA
+--------------------------------------------------------------------------------
+- .login-page : halaman login (email, password, tombol Masuk).
+- #shell      : tampilan utama aplikasi
+     #nav-right        -> nama user + tombol Keluar
+     #sidebar          -> menu kelompok (Aturan Umum / Master Data /
+                          Hak Akses / Keuangan)
+     #content-area     -> tempat render: dashboard / list / sampah
+- #modal-overlay -> modal generik (title + body) dipakai untuk form & detail.
+- memuat (urutan penting):
+      config.js -> api.js -> app.js  (axios dari CDN).
+  CONTOH: config.js butuh window.READ/ WRITE/AUTH dari api.js, maka api.js
+  dimuat SETELAH config.js (lihat berkas html actual: config di atas api).
+
+--------------------------------------------------------------------------------
+3. api.js — HTTP CLIENT
+--------------------------------------------------------------------------------
+- Membuat 3 instance axios dgn baseURL yang berbeda:
+      READ  -> http://localhost:5002/api
+      WRITE -> http://localhost:5003/api
+      AUTH  -> http://localhost:5001/api
+- Interceptor request: menambahkan header Authorization: Bearer <token>
+  (token disimpan di localStorage 'akira_token').
+- Interceptor response: jika 401, hapus token & reload halaman (kembali login).
+- instance diassign ke window.READ/WRITE/AUTH supaya bisa dipakai config.js.
+
+--------------------------------------------------------------------------------
+4. config.js — KONFIGURASI TABEL
+--------------------------------------------------------------------------------
+window.KONFIGURASI = {
+  'dashboard'    : { label:'Dashboard', route:'dashboard' },
+  'meja_toko'    : { route, label, kodeField:'tokoCode', hapus:true,
+                     kolom:[...], form:[...], buat, ubah },  // dst
+  ...
+  'meja_log'     : { label:'Log Audit', readOnly:true, ... }
+}
+- kodeField : nama field kode pada data, contoh 'tokoCode', 'penggunaCode'.
+- kolom     : definisi kolom tabel + label + sort (jika bisa sort).
+- form      : field formulir (Tambah/Ubah) dengan label + tipe.
+- buat/ubah : function yang memanggil WRITE (axios) utk POST/PUT.
+- hapus     : true -> tombol "Sampah" di halaman list muncul.
+- readOnly  : true (log audit) -> tanpa aksi tulis.
+- sensitif  : true (toko/jabatan/target) -> hanya superuser punya tombol tulis.
+- window.BATAS_HALAMAN = [5, 25, 50, 75, 100].
+
+Detail khusus:
+  * meja_jabatan.buat  -> WRITE.post('meja_jabatan', JSON.stringify(name), ...)
+      karena backend [FromBody] string (bug-ish, lihat bug/#1).
+  * meja_hakakses      -> buat DAN ubah sama-sama POST (upsert), tidak ada PUT.
+  * meja_log           -> form kosong, buat:null.
+
+--------------------------------------------------------------------------------
+5. app.js — LOGIKA APLIKASI
+--------------------------------------------------------------------------------
+### State global
+  STATE { token, user, view, konfig, rows, total, page, limit, totalPages,
+          q:{search,sort,dir}, mode }
+  TRASH { tab, page, limit, totalPages, rows }
+
+### Alur utama
+  init()   -> cek token+user di localStorage -> showShell atau showLogin.
+  doLogin  -> AUTH.post('auth/login'), simpan token+user di localStorage,
+              showShell().
+  showShell-> renderNav + renderSidebar + go('dashboard').
+  go(route)-> dashboard -> loadDashboard(); sampah -> loadTrash();
+              lainnya  -> set STATE.konfig, reset q/page/limit, load().
+
+### Otoritas di sisi UI
+  bolehTulis() -> superuser selalu boleh;
+                  master sensitif (toko/jabatan/target) -> return false utk
+                  user biasa; selain itu true.
+
+### Render list (generik)
+  renderContent -> title + renderToolbar + renderTable + renderPagination
+  renderToolbar -> kotak cari + select ukuran halaman + tombol "+ Tambah"
+                   (hanya jika k.buat && bolehTulis()).
+  renderTable   -> baris tabel + tombol:
+                   - Lihat  -> openDetail(code) (modal preview)
+                   - Ubah   -> openFormEdit(code) (hanya bila k.ubah &&
+                                 bolehTulis)
+                   - Sampah -> softDelete(code)  (hanya bila !readOnly &&
+                                 hapus!==false && bolehTulis)
+  renderPagination -> arah panah + nomor halaman 1..N (jendela 10).
+
+### Pendukung list
+  onSearch (debounce 300ms), onPageSize, goPage, sortBy (toggle asc/desc),
+  load() -> READ.get(route,{params}) -> isi STATE.rows/total/totalPages.
+
+### Dashboard
+  loadDashboard -> READ.get('dashboard') -> kartu statistik (Toko/Pengguna/
+                   Biodata/Jabatan/Target) + saldo per tempat + total saldo.
+
+### Sampah (Trash) — fitur baru
+  loadTrash         -> navigasi tab + load data trash via READ.get(
+                       TRASH.tab+'/trash', {page,limit})
+  renderTrashTable  -> tabel data sampah utk tab aktif + aksi Pulihkan /
+                       Ket: permanentTrash
+  renderTrashPagination
+  goTrash(tab) / goTrashPage(p) -> pindah tab/halaman
+  restoreTrash(code)  -> WRITE.post(tab+'/restore', JSON.stringify(code),
+                              header json)
+  permanentTrash(code)-> WRITE.delete(tab+'/permanent', {data: JSON str})
+
+### Form dan detail
+  openForm() / openFormEdit(code) -> renderForm(rec) di modal
+  renderForm  -> membangun input per field dalam k.form; mengisi nilai
+                 record saat mode edit.
+  collectForm -> membaca semua input 'fld-<field>' ke objek f.
+  saveForm    -> mode edit ? k.ubah(f) : k.buat(f); reload list.
+  openDetail  -> modal berisi label-nilai per kolom (preview).
+  softDelete  -> confirm + POST soft-delete (JSON string body) + toast + load.
+
+### Utilitas
+  toast(msg,type), escHtml(s), debounce(fn,ms), $('id').
+
+--------------------------------------------------------------------------------
+6. style.css — TAMPILAN
+--------------------------------------------------------------------------------
+- Variabel warna (--accent-blue/green/purple/orange/teal, dst).
+- Kelas login (login-page/login-card), shell (navbar/sidebar/main-content),
+- Tabel (.table-wrapper/table/th td), pagination, toast.
+- Baru: .trash-tabs, .trash-tab utk halaman Sampah; style tombol kecil.
+
+======================= end of view.txt ===========================================
