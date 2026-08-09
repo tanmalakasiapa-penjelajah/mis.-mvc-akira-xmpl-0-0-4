@@ -43,9 +43,7 @@ app.MapHealthChecks("/health");
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<AkiraDbContext>();
-    var logger = scope.ServiceProvider.GetRequiredService<ILogger<Program>>();
     await db.Database.MigrateAsync();
-    await Seeder.SeedAsync(db, logger);
 }
 
 app.Run();

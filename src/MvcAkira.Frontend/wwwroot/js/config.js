@@ -73,7 +73,7 @@ window.KONFIGURASI = {
       { field: 'jabatanCreatedat', label: 'Dibuat' },
     ],
     form: [{ field: 'jabatanName', label: 'Nama' }],
-    buat: (f) => WRITE.post('meja_jabatan', JSON.stringify(f.jabatanName || ''), {
+    buat: (f) => WRITE.post('meja_jabatan', { name: f.jabatanName || '' }, {
       headers: { 'Content-Type': 'application/json' },
     }),
     ubah: (f) => WRITE.put('meja_jabatan', { code: f.jabatanCode, name: f.jabatanName }),

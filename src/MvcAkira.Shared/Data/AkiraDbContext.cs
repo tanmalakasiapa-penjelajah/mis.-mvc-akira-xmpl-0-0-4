@@ -16,11 +16,17 @@ public class AkiraDbContext : DbContext
     public DbSet<MejaKeuangan> MejaKeuangan { get; set; } = default!;
     public DbSet<MejaLog> MejaLog { get; set; } = default!;
 
+    protected override void ConfigureConventions(ModelConfigurationBuilder configurationBuilder)
+    {
+        configurationBuilder.Conventions.Add(_ => new SnakeCaseColumnNameConvention());
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.Entity<MejaToko>(e =>
         {
             e.HasKey(x => x.TokoCode);
+            e.ToTable("meja_toko");
             e.Property(x => x.TokoCode).HasMaxLength(255).IsRequired();
             e.Property(x => x.TokoName).HasMaxLength(255).IsRequired();
             e.Property(x => x.TokoAddress).HasMaxLength(255).IsRequired();
@@ -34,6 +40,7 @@ public class AkiraDbContext : DbContext
         modelBuilder.Entity<MejaPengguna>(e =>
         {
             e.HasKey(x => x.PenggunaCode);
+            e.ToTable("meja_pengguna");
             e.Property(x => x.PenggunaCode).HasMaxLength(255).IsRequired();
             e.Property(x => x.PenggunaEmail).HasMaxLength(255).IsRequired();
             e.Property(x => x.PenggunaPassword).HasMaxLength(255).IsRequired();
@@ -47,6 +54,7 @@ public class AkiraDbContext : DbContext
         modelBuilder.Entity<MejaBiodata>(e =>
         {
             e.HasKey(x => x.BiodataCode);
+            e.ToTable("meja_biodata");
             e.Property(x => x.BiodataCode).HasMaxLength(255).IsRequired();
             e.Property(x => x.PenggunaCode).HasMaxLength(255).IsRequired();
             e.Property(x => x.TokoCode).HasMaxLength(255).IsRequired();
@@ -66,6 +74,7 @@ public class AkiraDbContext : DbContext
         modelBuilder.Entity<MejaJabatan>(e =>
         {
             e.HasKey(x => x.JabatanCode);
+            e.ToTable("meja_jabatan");
             e.Property(x => x.JabatanCode).HasMaxLength(255).IsRequired();
             e.Property(x => x.JabatanName).HasMaxLength(255).IsRequired();
             e.Property(x => x.JabatanSoftdeleted).HasDefaultValue(0);
@@ -76,6 +85,7 @@ public class AkiraDbContext : DbContext
         modelBuilder.Entity<MejaTarget>(e =>
         {
             e.HasKey(x => x.TargetCode);
+            e.ToTable("meja_target");
             e.Property(x => x.TargetCode).HasMaxLength(255).IsRequired();
             e.Property(x => x.TargetName).HasMaxLength(255).IsRequired();
             e.Property(x => x.TargetKeterangan).HasMaxLength(255).HasDefaultValue(string.Empty);
@@ -87,6 +97,7 @@ public class AkiraDbContext : DbContext
         modelBuilder.Entity<MejaHakakses>(e =>
         {
             e.HasKey(x => x.HakaksesCode);
+            e.ToTable("meja_hakakses");
             e.Property(x => x.HakaksesCode).HasMaxLength(255).IsRequired();
             e.Property(x => x.PenggunaCode).HasMaxLength(255).IsRequired();
             e.Property(x => x.TargetCode).HasMaxLength(255).IsRequired();
@@ -105,6 +116,7 @@ public class AkiraDbContext : DbContext
         modelBuilder.Entity<MejaKeuangan>(e =>
         {
             e.HasKey(x => x.KeuanganCode);
+            e.ToTable("meja_keuangan");
             e.Property(x => x.KeuanganCode).HasMaxLength(255).IsRequired();
             e.Property(x => x.PenggunaCode).HasMaxLength(255).IsRequired();
             e.Property(x => x.TokoCode).HasMaxLength(255).IsRequired();
@@ -125,6 +137,7 @@ public class AkiraDbContext : DbContext
         modelBuilder.Entity<MejaLog>(e =>
         {
             e.HasKey(x => x.LogCode);
+            e.ToTable("meja_log");
             e.Property(x => x.LogCode).HasMaxLength(255).IsRequired();
             e.Property(x => x.LogPelaku).HasMaxLength(255).IsRequired();
             e.Property(x => x.LogMencatat).HasMaxLength(255).IsRequired();

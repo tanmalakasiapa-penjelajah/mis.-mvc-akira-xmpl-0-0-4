@@ -20,57 +20,68 @@ namespace MvcAkira.Shared.Migrations
                 {
                     b.Property<string>("BiodataCode")
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("biodata_code");
 
                     b.Property<string>("BiodataAddress")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("biodata_address");
 
                     b.Property<string>("BiodataBorn")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("biodata_born");
 
                     b.Property<string>("BiodataCreatedat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("biodata_createdat");
 
                     b.Property<string>("BiodataFullname")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("biodata_fullname");
 
                     b.Property<string>("BiodataPhone")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("biodata_phone");
 
                     b.Property<int>("BiodataSoftdeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
+                        .HasDefaultValue(0)
+                        .HasColumnName("biodata_softdeleted");
 
                     b.Property<string>("BiodataUpdatedat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("biodata_updatedat");
 
                     b.Property<string>("JabatanCode")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("jabatan_code");
 
                     b.Property<string>("PenggunaCode")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("pengguna_code");
 
                     b.Property<string>("TokoCode")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("toko_code");
 
                     b.HasKey("BiodataCode");
 
@@ -81,64 +92,75 @@ namespace MvcAkira.Shared.Migrations
 
                     b.HasIndex("TokoCode");
 
-                    b.ToTable("MejaBiodata");
+                    b.ToTable("meja_biodata", (string)null);
                 });
 
             modelBuilder.Entity("MvcAkira.Shared.Entities.MejaHakakses", b =>
                 {
                     b.Property<string>("HakaksesCode")
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("hakakses_code");
 
                     b.Property<int>("HakaksesCreate")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
+                        .HasDefaultValue(0)
+                        .HasColumnName("hakakses_create");
 
                     b.Property<string>("HakaksesCreatedat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("hakakses_createdat");
 
                     b.Property<int>("HakaksesDelete")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
+                        .HasDefaultValue(0)
+                        .HasColumnName("hakakses_delete");
 
                     b.Property<int>("HakaksesLogin")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
+                        .HasDefaultValue(0)
+                        .HasColumnName("hakakses_login");
 
                     b.Property<int>("HakaksesRead")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
+                        .HasDefaultValue(0)
+                        .HasColumnName("hakakses_read");
 
                     b.Property<int>("HakaksesSoftdeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
+                        .HasDefaultValue(0)
+                        .HasColumnName("hakakses_softdeleted");
 
                     b.Property<int>("HakaksesUpdate")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
+                        .HasDefaultValue(0)
+                        .HasColumnName("hakakses_update");
 
                     b.Property<string>("HakaksesUpdatedat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("hakakses_updatedat");
 
                     b.Property<string>("PenggunaCode")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("pengguna_code");
 
                     b.Property<string>("TargetCode")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("target_code");
 
                     b.HasKey("HakaksesCode");
 
@@ -147,98 +169,115 @@ namespace MvcAkira.Shared.Migrations
                     b.HasIndex("PenggunaCode", "TargetCode")
                         .IsUnique();
 
-                    b.ToTable("MejaHakakses");
+                    b.ToTable("meja_hakakses", (string)null);
                 });
 
             modelBuilder.Entity("MvcAkira.Shared.Entities.MejaJabatan", b =>
                 {
                     b.Property<string>("JabatanCode")
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("jabatan_code");
 
                     b.Property<string>("JabatanCreatedat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("jabatan_createdat");
 
                     b.Property<string>("JabatanName")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("jabatan_name");
 
                     b.Property<int>("JabatanSoftdeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
+                        .HasDefaultValue(0)
+                        .HasColumnName("jabatan_softdeleted");
 
                     b.Property<string>("JabatanUpdatedat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("jabatan_updatedat");
 
                     b.HasKey("JabatanCode");
 
-                    b.ToTable("MejaJabatan");
+                    b.ToTable("meja_jabatan", (string)null);
                 });
 
             modelBuilder.Entity("MvcAkira.Shared.Entities.MejaKeuangan", b =>
                 {
                     b.Property<string>("KeuanganCode")
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("keuangan_code");
 
                     b.Property<string>("KeuanganCreatedat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("keuangan_createdat");
 
                     b.Property<string>("KeuanganDeskripsi")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("keuangan_deskripsi");
 
                     b.Property<string>("KeuanganJudul")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("keuangan_judul");
 
                     b.Property<decimal>("KeuanganNominal")
-                        .HasColumnType("NUMERIC");
+                        .HasColumnType("NUMERIC")
+                        .HasColumnName("keuangan_nominal");
 
                     b.Property<int>("KeuanganSoftdeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
+                        .HasDefaultValue(0)
+                        .HasColumnName("keuangan_softdeleted");
 
                     b.Property<string>("KeuanganStatus")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("keuangan_status");
 
                     b.Property<string>("KeuanganTempat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("keuangan_tempat");
 
                     b.Property<string>("KeuanganUpdatedat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("keuangan_updatedat");
 
                     b.Property<string>("KeuanganWaktucatat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("keuangan_waktucatat");
 
                     b.Property<string>("PenggunaCode")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("pengguna_code");
 
                     b.Property<string>("TokoCode")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("toko_code");
 
                     b.HasKey("KeuanganCode");
 
@@ -248,54 +287,63 @@ namespace MvcAkira.Shared.Migrations
 
                     b.HasIndex("TokoCode");
 
-                    b.ToTable("MejaKeuangan");
+                    b.ToTable("meja_keuangan", (string)null);
                 });
 
             modelBuilder.Entity("MvcAkira.Shared.Entities.MejaLog", b =>
                 {
                     b.Property<string>("LogCode")
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("log_code");
 
                     b.Property<string>("LogCreatedat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("log_createdat");
 
                     b.Property<string>("LogMencatat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("log_mencatat");
 
                     b.Property<string>("LogNewvalue")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("log_newvalue");
 
                     b.Property<string>("LogOldvalue")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("log_oldvalue");
 
                     b.Property<string>("LogPelaku")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("log_pelaku");
 
                     b.Property<int>("LogSoftdeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
+                        .HasDefaultValue(0)
+                        .HasColumnName("log_softdeleted");
 
                     b.Property<string>("LogTarget")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("log_target");
 
                     b.Property<string>("LogUpdatedat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("log_updatedat");
 
                     b.HasKey("LogCode");
 
@@ -305,135 +353,156 @@ namespace MvcAkira.Shared.Migrations
 
                     b.HasIndex("LogPelaku");
 
-                    b.ToTable("MejaLog");
+                    b.ToTable("meja_log", (string)null);
                 });
 
             modelBuilder.Entity("MvcAkira.Shared.Entities.MejaPengguna", b =>
                 {
                     b.Property<string>("PenggunaCode")
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("pengguna_code");
 
                     b.Property<string>("PenggunaCreatedat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("pengguna_createdat");
 
                     b.Property<string>("PenggunaEmail")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("pengguna_email");
 
                     b.Property<int>("PenggunaNonaktif")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
+                        .HasDefaultValue(0)
+                        .HasColumnName("pengguna_nonaktif");
 
                     b.Property<string>("PenggunaPassword")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("pengguna_password");
 
                     b.Property<int>("PenggunaSoftdeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
+                        .HasDefaultValue(0)
+                        .HasColumnName("pengguna_softdeleted");
 
                     b.Property<string>("PenggunaUpdatedat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("pengguna_updatedat");
 
                     b.HasKey("PenggunaCode");
 
                     b.HasIndex("PenggunaEmail")
                         .IsUnique();
 
-                    b.ToTable("MejaPengguna");
+                    b.ToTable("meja_pengguna", (string)null);
                 });
 
             modelBuilder.Entity("MvcAkira.Shared.Entities.MejaTarget", b =>
                 {
                     b.Property<string>("TargetCode")
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("target_code");
 
                     b.Property<string>("TargetCreatedat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("target_createdat");
 
                     b.Property<string>("TargetKeterangan")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
                         .HasMaxLength(255)
                         .HasColumnType("TEXT")
-                        .HasDefaultValue("");
+                        .HasDefaultValue("")
+                        .HasColumnName("target_keterangan");
 
                     b.Property<string>("TargetName")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("target_name");
 
                     b.Property<int>("TargetSoftdeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
+                        .HasDefaultValue(0)
+                        .HasColumnName("target_softdeleted");
 
                     b.Property<string>("TargetUpdatedat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("target_updatedat");
 
                     b.HasKey("TargetCode");
 
-                    b.ToTable("MejaTarget");
+                    b.ToTable("meja_target", (string)null);
                 });
 
             modelBuilder.Entity("MvcAkira.Shared.Entities.MejaToko", b =>
                 {
                     b.Property<string>("TokoCode")
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("toko_code");
 
                     b.Property<string>("TokoAddress")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("toko_address");
 
                     b.Property<string>("TokoCreatedat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("toko_createdat");
 
                     b.Property<string>("TokoEmail")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("toko_email");
 
                     b.Property<string>("TokoName")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("toko_name");
 
                     b.Property<string>("TokoPhone")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("toko_phone");
 
                     b.Property<int>("TokoSoftdeleted")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
-                        .HasDefaultValue(0);
+                        .HasDefaultValue(0)
+                        .HasColumnName("toko_softdeleted");
 
                     b.Property<string>("TokoUpdatedat")
                         .IsRequired()
                         .HasMaxLength(255)
-                        .HasColumnType("TEXT");
+                        .HasColumnType("TEXT")
+                        .HasColumnName("toko_updatedat");
 
                     b.HasKey("TokoCode");
 
-                    b.ToTable("MejaToko");
+                    b.ToTable("meja_toko", (string)null);
                 });
 #pragma warning restore 612, 618
         }

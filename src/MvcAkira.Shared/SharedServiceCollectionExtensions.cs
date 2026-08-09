@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -18,7 +19,7 @@ public static class SharedServiceCollectionExtensions
                        ?? "akira-0-0-4.db";
         var abs = DbPath.Absolute(fileName);
         services.AddDbContext<AkiraDbContext>(o =>
-            o.UseSqlite($"Data Source={abs}"));
+            o.UseSqlite(new SqliteConnectionStringBuilder { DataSource = abs }.ToString()));
 
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserAccessor, HttpCurrentUserAccessor>();

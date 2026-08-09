@@ -268,7 +268,7 @@ function goTrashPage(p) {
 
 async function restoreTrash(code) {
   try {
-    await WRITE.post(TRASH.tab + '/restore', JSON.stringify(code), { headers: { 'Content-Type': 'application/json' } });
+    await WRITE.post(TRASH.tab + '/restore', { code: code }, { headers: { 'Content-Type': 'application/json' } });
     toast('Dikembalikan');
     await loadTrash();
   } catch (e) {
@@ -281,7 +281,7 @@ async function permanentTrash(code) {
   try {
     await WRITE.delete(TRASH.tab + '/permanent', {
       headers: { 'Content-Type': 'application/json' },
-      data: JSON.stringify(code),
+      data: { code: code },
     });
     toast('Dihapus permanen');
     await loadTrash();
@@ -555,7 +555,7 @@ async function softDelete(code) {
   var ok = confirm('Hapus (soft)? Data akan masuk ke sampah.');
   if (!ok) return;
   try {
-    await WRITE.post(STATE.konfig.route + '/soft-delete', JSON.stringify(code), {
+    await WRITE.post(STATE.konfig.route + '/soft-delete', { code: code }, {
       headers: { 'Content-Type': 'application/json' },
     });
     toast('Dipindah ke sampah');

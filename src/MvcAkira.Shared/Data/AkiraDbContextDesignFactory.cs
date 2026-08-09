@@ -1,3 +1,4 @@
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
@@ -9,7 +10,7 @@ public class AkiraDbContextDesignFactory : IDesignTimeDbContextFactory<AkiraDbCo
     public AkiraDbContext CreateDbContext(string[] args)
     {
         var opts = new DbContextOptionsBuilder<AkiraDbContext>()
-            .UseSqlite($"Data Source={DbPath.Absolute()}")
+            .UseSqlite(new SqliteConnectionStringBuilder { DataSource = DbPath.Absolute() }.ToString())
             .Options;
         return new AkiraDbContext(opts);
     }

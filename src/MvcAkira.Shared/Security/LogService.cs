@@ -40,8 +40,9 @@ public class LogService
         await _db.SaveChangesAsync(ct);
     }
 
+    /// <summary>Format target log: "meja_&lt;tabel&gt;:&lt;code&gt;" tanpa double prefix.</summary>
     public static string Target(string tableName, string code)
-        => $"meja_{tableName}:{tableName}_code={code}";
+        => $"{tableName}:{code}";
 }
 
 public static class SharedErrorCodes

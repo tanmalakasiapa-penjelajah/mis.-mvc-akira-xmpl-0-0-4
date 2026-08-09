@@ -29,37 +29,37 @@ public class WriteController : ControllerBase
     }
 
     [HttpPost("meja_toko/soft-delete")]
-    public async Task<IActionResult> TokoSoftDelete([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.SoftDeleteTokoAsync(code, ct));
+    public async Task<IActionResult> TokoSoftDelete([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.SoftDeleteTokoAsync(body.Code, ct));
 
     [HttpPost("meja_toko/restore")]
-    public async Task<IActionResult> TokoRestore([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.RestoreTokoAsync(code, ct));
+    public async Task<IActionResult> TokoRestore([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.RestoreTokoAsync(body.Code, ct));
 
     [HttpDelete("meja_toko/permanent")]
-    public async Task<IActionResult> TokoPermanent([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.PermanentTokoAsync(code, ct));
+    public async Task<IActionResult> TokoPermanent([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.PermanentTokoAsync(body.Code, ct));
 
     // ---------- JABATAN ----------
     [HttpPost("meja_jabatan")]
-    public async Task<IActionResult> JabatanCreate([FromBody] string name, CancellationToken ct)
-        => Res(await _tulis.CreateJabatanAsync(name, ct));
+    public async Task<IActionResult> JabatanCreate([FromBody] JabatanBody body, CancellationToken ct)
+        => Res(await _tulis.CreateJabatanAsync(body.Name!, ct));
 
     [HttpPut("meja_jabatan")]
     public async Task<IActionResult> JabatanUpdate([FromBody] JabatanBody body, CancellationToken ct)
         => Res(await _tulis.UpdateJabatanAsync(body.Code!, body.Name!, ct));
 
     [HttpPost("meja_jabatan/soft-delete")]
-    public async Task<IActionResult> JabatanSoftDelete([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.SoftDeleteJabatanAsync(code, ct));
+    public async Task<IActionResult> JabatanSoftDelete([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.SoftDeleteJabatanAsync(body.Code, ct));
 
     [HttpPost("meja_jabatan/restore")]
-    public async Task<IActionResult> JabatanRestore([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.RestoreJabatanAsync(code, ct));
+    public async Task<IActionResult> JabatanRestore([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.RestoreJabatanAsync(body.Code, ct));
 
     [HttpDelete("meja_jabatan/permanent")]
-    public async Task<IActionResult> JabatanPermanent([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.PermanentJabatanAsync(code, ct));
+    public async Task<IActionResult> JabatanPermanent([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.PermanentJabatanAsync(body.Code, ct));
 
     // ---------- TARGET ----------
     [HttpPost("meja_target")]
@@ -71,16 +71,16 @@ public class WriteController : ControllerBase
         => Res(await _tulis.UpdateTargetAsync(body.Code!, body.Name!, body.Keterangan, ct));
 
     [HttpPost("meja_target/soft-delete")]
-    public async Task<IActionResult> TargetSoftDelete([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.SoftDeleteTargetAsync(code, ct));
+    public async Task<IActionResult> TargetSoftDelete([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.SoftDeleteTargetAsync(body.Code, ct));
 
     [HttpPost("meja_target/restore")]
-    public async Task<IActionResult> TargetRestore([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.RestoreTargetAsync(code, ct));
+    public async Task<IActionResult> TargetRestore([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.RestoreTargetAsync(body.Code, ct));
 
     [HttpDelete("meja_target/permanent")]
-    public async Task<IActionResult> TargetPermanent([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.PermanentTargetAsync(code, ct));
+    public async Task<IActionResult> TargetPermanent([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.PermanentTargetAsync(body.Code, ct));
 
     // ---------- PENGGUNA ----------
     [HttpPost("meja_pengguna")]
@@ -100,16 +100,16 @@ public class WriteController : ControllerBase
         => Res(await _tulis.ResetPasswordPenggunaAsync(body.Code!, body.Password!, ct));
 
     [HttpPost("meja_pengguna/soft-delete")]
-    public async Task<IActionResult> PenggunaSoftDelete([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.SoftDeletePenggunaAsync(code, ct));
+    public async Task<IActionResult> PenggunaSoftDelete([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.SoftDeletePenggunaAsync(body.Code, ct));
 
     [HttpPost("meja_pengguna/restore")]
-    public async Task<IActionResult> PenggunaRestore([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.RestorePenggunaAsync(code, ct));
+    public async Task<IActionResult> PenggunaRestore([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.RestorePenggunaAsync(body.Code, ct));
 
     [HttpDelete("meja_pengguna/permanent")]
-    public async Task<IActionResult> PenggunaPermanent([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.PermanentPenggunaAsync(code, ct));
+    public async Task<IActionResult> PenggunaPermanent([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.PermanentPenggunaAsync(body.Code, ct));
 
     // ---------- BIODATA ----------
     [HttpPost("meja_biodata")]
@@ -122,16 +122,16 @@ public class WriteController : ControllerBase
         => Res(await _tulis.UpdateBiodataAsync(body.Code!, body.Fullname!, body.Born!, body.Address!, body.Phone!, ct));
 
     [HttpPost("meja_biodata/soft-delete")]
-    public async Task<IActionResult> BiodataSoftDelete([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.SoftDeleteBiodataAsync(code, ct));
+    public async Task<IActionResult> BiodataSoftDelete([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.SoftDeleteBiodataAsync(body.Code, ct));
 
     [HttpPost("meja_biodata/restore")]
-    public async Task<IActionResult> BiodataRestore([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.RestoreBiodataAsync(code, ct));
+    public async Task<IActionResult> BiodataRestore([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.RestoreBiodataAsync(body.Code, ct));
 
     [HttpDelete("meja_biodata/permanent")]
-    public async Task<IActionResult> BiodataPermanent([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.PermanentBiodataAsync(code, ct));
+    public async Task<IActionResult> BiodataPermanent([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.PermanentBiodataAsync(body.Code, ct));
 
     // ---------- HAK AKSES ----------
     [HttpPost("meja_hakakses")]
@@ -140,16 +140,16 @@ public class WriteController : ControllerBase
             body.Read, body.Create, body.Update, body.Delete, body.Login, ct));
 
     [HttpPost("meja_hakakses/soft-delete")]
-    public async Task<IActionResult> HakaksesSoftDelete([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.SoftDeleteHakaksesAsync(code, ct));
+    public async Task<IActionResult> HakaksesSoftDelete([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.SoftDeleteHakaksesAsync(body.Code, ct));
 
     [HttpPost("meja_hakakses/restore")]
-    public async Task<IActionResult> HakaksesRestore([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.RestoreHakaksesAsync(code, ct));
+    public async Task<IActionResult> HakaksesRestore([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.RestoreHakaksesAsync(body.Code, ct));
 
     [HttpDelete("meja_hakakses/permanent")]
-    public async Task<IActionResult> HakaksesPermanent([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.PermanentHakaksesAsync(code, ct));
+    public async Task<IActionResult> HakaksesPermanent([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.PermanentHakaksesAsync(body.Code, ct));
 
     // ---------- KEUANGAN ----------
     [HttpPost("meja_keuangan")]
@@ -163,22 +163,23 @@ public class WriteController : ControllerBase
             body.Status, body.Tempat, body.Waktucatat, ct));
 
     [HttpPost("meja_keuangan/soft-delete")]
-    public async Task<IActionResult> KeuanganSoftDelete([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.SoftDeleteKeuanganAsync(code, ct));
+    public async Task<IActionResult> KeuanganSoftDelete([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.SoftDeleteKeuanganAsync(body.Code, ct));
 
     [HttpPost("meja_keuangan/restore")]
-    public async Task<IActionResult> KeuanganRestore([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.RestoreKeuanganAsync(code, ct));
+    public async Task<IActionResult> KeuanganRestore([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.RestoreKeuanganAsync(body.Code, ct));
 
     [HttpDelete("meja_keuangan/permanent")]
-    public async Task<IActionResult> KeuanganPermanent([FromBody] string code, CancellationToken ct)
-        => Res(await _tulis.PermanentKeuanganAsync(code, ct));
+    public async Task<IActionResult> KeuanganPermanent([FromBody] KodeBody body, CancellationToken ct)
+        => Res(await _tulis.PermanentKeuanganAsync(body.Code, ct));
 
     private IActionResult Res(HasilTulis r)
         => r.Ok ? Ok(new { kode = r.Kode }) : StatusCode(r.Status, new { pesan = r.Pesan, kode = r.Kode ?? r.Pesan });
 }
 
 public record TokoBody(string? Code, string? Name, string? Address, string? Email, string? Phone);
+public record KodeBody(string Code);
 public record JabatanBody(string? Code, string? Name);
 public record TargetBody(string? Code, string? Name, string? Keterangan);
 public record NonaktifBody(string? Code, int Nonaktif);
