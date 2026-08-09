@@ -1,0 +1,287 @@
+================================================================================
+  PLAN 0.0.2 - STACK TEKNOLOGI & KOMPONEN
+  Proyek   : mvc-akira-xmpl-0-0-4
+  Tanggal  : 2026-08-07
+  Status   : DRAFT - versi final paket ditentukan saat scaffolding
+  Isi      : daftar komponen/package/library (backend + frontend + testing),
+             alasan pemilihan, pengganti jika ada masalah, versi yang dipakai
+  Acuan    : plan-0-0-1.txt (desain DB) + mvc-akira-xmpl-0-0-3 (stack lama)
+  Prinsip  : "bergerak perlahan & matang" - satu langkah kecil, tanpa
+             perubahan raksasa, setiap komponen punya alasan + cadangan.
+================================================================================
+
+--------------------------------------------------------------------------------
+  0. LINGKUNGAN PENGEMBANG
+--------------------------------------------------------------------------------
+
+  OS           : CachyOS x86_64 (KDE Plasma, Wayland)
+  CPU / RAM    : Intel Core i5-10210U (8 thread) @ 4.20 GHz / 7.25 GiB
+  .NET SDK     : 10.0.x  (wajib .NET 10, bukan versi lain)
+  SQLite tools : sqlite3 (CLI) + DB Browser for SQLite
+  Git          : repo diinisialisasi per proyek
+
+  Konsekuensi:
+  - Semua package wajib kompatibel net10.0.
+  - Database bisa diperiksa manual dengan DB Browser.
+  - Kalau package bermasalah, catat ke folder bug/ lalu cari pengganti
+    (lihat bagian H).
+
+--------------------------------------------------------------------------------
+  A. BACKEND - INTI (CQRS + JWT)
+--------------------------------------------------------------------------------
+
+  1. MediatR 14.x                        -> CQRS pattern
+     Wajib. Memisahkan command (tulis) vs query (baca). Pipeline behavior
+     untuk logging -> validasi -> transaksi. Sudah teruji di 0-0-3.
+
+  2. FluentValidation 12.x + DependencyInjectionExtensions
+     -> validasi command/query
+     Aturan validasi dideklarasikan di validator, dijalankan otomatis
+     lewat pipeline MediatR.
+
+  3. Microsoft.AspNetCore.Authentication.JwtBearer 10.x
+     -> verifikasi & validasi token JWT
+     Token diterbitkan hanya oleh port Auth; Read/Write hanya memvalidasi.
+
+  4. BCrypt.Net-Next 4.x               -> hash password
+     Pakai bcrypt + salt. Tidak memakai Identity agar paham prosesnya.
+
+  5. FluentResults 4.x                 -> pola Result<T>
+     Kembalikan sukses/gagal tanpa exception di jalur normal.
+
+  6. Mapster 10.x                      -> mapping entity <-> DTO
+     Cepat & sintaks sederhana. Fase awal boleh mapping manual untuk
+     belajar; Mapster dipakai saat proyek sudah besar.
+
+--------------------------------------------------------------------------------
+  B. BACKEND - DATA & API
+--------------------------------------------------------------------------------
+
+  7. Microsoft.EntityFrameworkCore.Sqlite 10.x     -> ORM + driver SQLite
+     Code-first sesuai desain plan-0-0-1 (8 tabel meja_*).
+
+  8. Microsoft.EntityFrameworkCore.Design 10.x     -> tooling migrasi
+     dotnet ef migrations add / database update.
+
+  9. Microsoft.EntityFrameworkCore.Tools 10.x
+
+  10. SQLitePCLRaw.bundle_e_sqlite3    -> native SQLite bundle
+      Sudah dipakai di 0-0-3; memastikan driver native tersedia.
+
+  11. Scalar.AspNetCore 2.x            -> dokumentasi API (OpenAPI)
+      Pengganti modern Swashbuckle. UI interaktif untuk uji endpoint.
+
+  12. Microsoft.AspNetCore.OpenApi 10.x -> OpenAPI generator bawaan
+
+  13. LinqKit (opsional, saat search multi-field)
+      -> predicate builder untuk halaman list
+      Bantuan saat search dinamis ke banyak kolom (LIKE pada join).
+      Kalau ternyata tidak dibutuhkan, JANGAN dipasang (aturan hemat).
+
+  14. EntityFramework.Exceptions (opsional)
+      -> terjemahkan error database jadi exception jelas
+      Contoh: unique constraint -> jelas, bukan pesan mentah SQLite.
+      CATATAN: pastikan versi kompatibel net10 sebelum dipasang.
+
+--------------------------------------------------------------------------------
+  C. BACKEND - KEAMANAN API
+--------------------------------------------------------------------------------
+
+  15. Microsoft.AspNetCore.RateLimiting   -> LIMIT REQUEST (built-in)
+      TIDAK butuh package tambahan. Sliding window untuk /login,
+      token bucket / fixed window untuk endpoint lain, /health tanpa limit.
+      Saat limit habis -> HTTP 429 + Retry-After.
+
+  16. ProblemDetails (AddProblemDetails, built-in .NET)
+      -> error respons standar RFC 7807
+      Semua error dikembalikan seragam {type, title, status, detail}.
+      Bantu DEBUGGING: letak error kelihatan tanpa membocorkan stack trace.
+
+  17. GlobalExceptionHandler (middleware sendiri, warisan 0-0-3)
+      -> tangkap exception terakhir sebelum ProblemDetails
+      Catat ke Serilog, lalu ubah jadi respons standar.
+
+  18. ApiPosture + ApiPosture.Core     -> SCAN KEAMANAN STATIS (CLI)
+      Jalankan rutin: apiposture scan . --fail-on high (0 temuan).
+
+  19. HtmlSanitizer (opsional, saat ada input teks ke frontend)
+      -> cegah XSS untuk input pengguna
+      Dipasang HANYA jika ada kolom teks bebas yang dirender ke UI.
+
+--------------------------------------------------------------------------------
+  D. BACKEND - LOGGING, OBSERVABILITY & DEBUGGING
+--------------------------------------------------------------------------------
+
+  20. Serilog.AspNetCore 10.x + Serilog.Sinks.Console + Serilog.Sinks.File
+      -> logging terstruktur (JSON, filter level, auto flush)
+      Sink tambahan nanti: Seq (dashboard log terpusat).
+
+  21. dotnet watch run                 -> hot reload (BUILT-IN)
+      Watchdog utama. Setiap file berubah -> rebuild otomatis.
+
+  22. Microsoft.Extensions.Diagnostics.HealthChecks
+      + AspNetCore.HealthChecks.Sqlite 9.x
+      -> endpoint /health cek DB & service
+      Tambahan nanti: AspNetCore.HealthChecks.UI untuk dashboard visual.
+
+  23. MiniProfiler.AspNetCore + MiniProfiler.EntityFrameworkCore
+      -> ukur kinerja per request & query EF (N+1, durasi)
+      Dipakai di fase belajar; produksi nanti bisa matikan.
+
+  24. OpenTelemetry (Api, Exporter)   -> tracing & metric (fase lanjut)
+      Standar industri untuk observability produksi. DIPASANG NANTI,
+      bukan di fase awal (prinsip hemat & perlahan).
+
+  25. Microsoft.Extensions.Http.Resilience (Polly v8)
+      -> retry/timeout/circuit-breaker saat panggil HTTP eksternal
+      Dibutuhkan saat integrasi ERP lintas service. Fase awal opsional.
+
+--------------------------------------------------------------------------------
+  E. BACKEND - TESTING (xUnit)
+--------------------------------------------------------------------------------
+
+  26. xUnit 3.x                       -> unit + integration test
+      UPGRADE dari xUnit 2.9.3 (0-0-3). v3 lebih cepat & dioptimalkan
+      untuk .NET 10. Kalau ada masalah kompatibilitas, bisa kembali ke 2.x.
+
+  27. Microsoft.AspNetCore.Mvc.Testing 10.x -> test endpoint sungguhan
+      WebApplicationFactory + marker (pola 0-0-3).
+
+  28. FluentAssertions (atau Shouldly)  -> assert mudah dibaca
+      "result.Should().BeEquivalentTo(...)". Pilih SATU saja.
+
+  29. Moq 4.x  (atau NSubstitute)       -> mock dependency
+      Membuat objek palsu untuk handler. Pilih SATU saja; Moq sudah
+      teruji di 0-0-3.
+
+  30. Bogus                            -> data test acak & realistis
+      Generate email/nama/tanggal untuk DATA TEST acak saja.
+      TIDAK untuk seed (keputusan: seed 9 akun memakai DATA TETAP /
+      deterministik, lihat plan-0-0-1 bagian G).
+
+  31. coverlet.collector               -> laporan coverage
+
+  Flow testing: unit test handler -> integration test endpoint ->
+  test DB SQLite in-memory/file sementara (tidak menyentuh DB dev).
+
+--------------------------------------------------------------------------------
+  F. FRONTEND (wwwroot statis + CDN, tanpa build tool di fase awal)
+--------------------------------------------------------------------------------
+
+  32. Tailwind CSS + DaisyUI           -> styling + komponen siap pakai
+      Utility-first + komponen (button, card, table, form). CDN dulu;
+      Tailwind v4 + Vite hanya jika butuh build pipeline.
+
+  33. HTMX                            -> CRUD tanpa reload (server-driven)
+      Render partial via hx-get/hx-post/hx-swap. Minim JS.
+
+  34. Axios                          -> panggil API + header JWT
+      Interceptor otomatis "Authorization: Bearer <token>".
+
+  35. Alpine.js                      -> reaktivitas ringan (BARU)
+      PASANGAN HTMX: kelola state/toggle modal/loading tanpa menulis
+      banyak vanilla JS. 14KB, tidak butuh build.
+
+  36. SweetAlert2                    -> notifikasi & konfirmasi dialog
+      Toast sukses/gagal + konfirmasi soft delete / hapus permanen.
+
+  37. Tabler Icons (atau Heroicons)  -> ikon konsisten utk ERP
+
+  38. flatpickr                      -> date picker (tanggal & datetime)
+      Untuk keuangan_waktucatat, biodata_born, dll.
+
+  39. day.js (BARU)                  -> format & manipulasi tanggal
+      2KB. Sinkron dengan format "yyyy-MM-dd HH:mm:ss" di DB.
+
+  40. ApexCharts (atau ECharts)      -> grafik dashboard & laporan
+      Apex ringan; ECharts lebih kaya utk drill-down. Pilih sesuai kebutuhan.
+
+  41. Notyf (opsional)               -> toast non-blocking ringan
+      Alternatif SweetAlert2 untuk feedback cepat (bukan dialog).
+
+  CATATAN: JANGAN kembali ke jQuery. HTMX + Axios + Alpine cukup.
+
+--------------------------------------------------------------------------------
+  G. POLA / METHOD YANG DIPAKAI (bekal arsitektur)
+--------------------------------------------------------------------------------
+
+  - Command/Query pattern : baca (query) vs tulis (command) terpisah.
+  - MediatR pipeline      : logging -> validasi -> transaction -> handler.
+  - Result pattern        : handler mengembalikan Result<T>, bukan exception.
+  - Soft delete + audit   : softdeleted/createdat/updatedat di semua tabel.
+  - Log audit terpusat    : meja_log utk login/logout/softdelete/restore/delete.
+  - DTO & mapping         : entity tidak pernah keluar langsung ke client.
+  - Rate limit policy     : tiap endpoint punya batas request sendiri.
+  - Isolasi data scoped   : query Read selalu filter toko_code (kecuali
+                            superuser); command Write tolak 403 jika record
+                            bukan milik tokonya (plan-0-0-1 bagian H).
+
+--------------------------------------------------------------------------------
+  H. DEBUGGING & PENGANTI KOMPONEN (jika bermasalah)
+--------------------------------------------------------------------------------
+
+  Urutan mencari letak error (lapis demi lapis, pelan-pelan):
+    1. dotnet build          -> error kompilasi / versi package bentrok.
+    2. dotnet run            -> DI tak terdaftar, config kosong, migrasi
+                                belum di-update.
+    3. Request pipeline      -> ProblemDetails + GlobalExceptionHandler
+                                menunjukkan controller/handler/EF mana.
+    4. DB layer              -> EntityFramework.Exceptions + MiniProfiler
+                                menunjukkan query mana yang gagal/lambat.
+    5. Frontend              -> konsol browser + Network tab; HTMX error
+                                header + Axios interceptor.
+
+  Daftar pengganti jika komponen tidak cocok di .NET 10:
+    MediatR          -> custom mediator sederhana (belajar internalnya)
+    FluentValidation -> DataAnnotations / validasi manual
+    Mapster          -> mapping manual (sudah direncanakan fase awal)
+    FluentResults    -> Result<T> custom (belajar)
+    Scalar           -> Swashbuckle.AspNetCore (klasik)
+    Serilog          -> Microsoft.Extensions.Logging bawaan
+    MiniProfiler     -> OpenTelemetry (produksi)
+    Moq              -> NSubstitute
+    xUnit 3.x        -> xUnit 2.9.3 (kembali ke versi 0-0-3 yang teruji)
+    ApexCharts       -> ECharts
+    Alpine.js        -> vanilla JS (tetap minimal)
+
+  Catatan pengganti: JANGAN ganti sepihak. Tulis dulu ke folder bug/ atau
+  today/, diskusikan, baru pindah. Prinsip: satu perubahan kecil tiap kali.
+
+--------------------------------------------------------------------------------
+  I. KEPUTUSAN YANG BELUM DITENTUKAN (diputuskan saat scaffolding/implementasi)
+--------------------------------------------------------------------------------
+
+  [ ] FluentAssertions vs Shouldly          -> pilih satu saat test pertama.
+  [ ] Moq vs NSubstitute                    -> pilih satu; Moq default.
+  [ ] ApexCharts vs ECharts                 -> lihat kebutuhan grafik.
+  [ ] LinqKit & EntityFramework.Exceptions  -> pasang HANYA jika dibutuhkan.
+  [ ] OpenTelemetry & Seq                   -> fase lanjut (produksi).
+  [ ] Tailwind CDN vs Tailwind v4 + Vite    -> fase awal tetap CDN.
+   [ ] Angka limit rate per endpoint         -> tentukan saat fase auth.
+   [ ] Repository pattern?                   -> ya/tidak, putuskan di implementasi.
+   [ ] UI E2E test (Playwright)?             -> menyusul setelah API stabil.
+
+   SUDAH DIPUTUSKAN (revisi v0.0.2):
+   [x] meja_target -> target_name = nama tabel (bukan modul).
+   [x] Seed 9 akun -> data TETAP deterministik; Bogus hanya untuk test.
+   [x] Tabel global (toko/jabatan/target/pengguna/hakakses/log) ->
+       baca semua; tulis dibatasi hakakses; edit master sensitif
+       (toko/jabatan/target) hanya superuser (plan-0-0-1 H.5).
+
+--------------------------------------------------------------------------------
+  J. RIWAYAT REVISI
+--------------------------------------------------------------------------------
+
+  v0.0.1 : 2026-08-07 - draft awal stack backend (CQRS/JWT/data/security/
+           observability/testing) + frontend (HTMX/Axios/Alpine + CDN) +
+           pola arsitektur + panduan debugging + daftar pengganti.
+            Disusun dari pengalaman mvc-akira-xmpl-0-0-3 (package yang
+            sudah teruji dipakai kembali; yang bermasalah dicatat).
+   v0.0.2 : 2026-08-07 - keputusan awal dicatat di Bab I: target_name =
+            nama tabel; seed = data tetap (Bogus hanya untuk data test);
+            tabel global baca semua & edit master sensitif hanya
+            superuser. Item 30 (Bogus) disesuaikan.
+
+  Terakhir diedit : 07-Agustus-2026
+  Oleh            : Kobo Kanaeru (asisten opencode) bersama pemilik proyek
+================================================================================

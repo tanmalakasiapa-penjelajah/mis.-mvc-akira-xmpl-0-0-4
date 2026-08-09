@@ -1,0 +1,6 @@
+@MvcAkira.Auth_HostAddress = http://localhost:5202
+
+GET {{MvcAkira.Auth_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

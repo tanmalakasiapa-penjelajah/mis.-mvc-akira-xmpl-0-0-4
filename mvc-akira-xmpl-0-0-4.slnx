@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/MvcAkira.Auth/MvcAkira.Auth.csproj" />
+    <Project Path="src/MvcAkira.Frontend/MvcAkira.Frontend.csproj" />
+    <Project Path="src/MvcAkira.Read/MvcAkira.Read.csproj" />
+    <Project Path="src/MvcAkira.Shared/MvcAkira.Shared.csproj" />
+    <Project Path="src/MvcAkira.Write/MvcAkira.Write.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/MvcAkira.Tests/MvcAkira.Tests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,698 @@
+================================================================================
+  PLAN 0.0.1 - DESAIN QUERY TABLE SQLITE
+  Proyek   : mvc-akira-xmpl-0-0-4
+  Tanggal  : 2026-08-07
+  Status   : DRAFT - masih bisa direvisi (bukan final)
+  Isi      : desain tabel + relasi + index + contoh query (inner join) SQLite
+  Acuan    : mvc-akira-xmpl-0-0-3 (desain 8 tabel meja_*_xmpl) yang sudah matang
+================================================================================
+
+--------------------------------------------------------------------------------
+ A. KONVENSI PENULISAN (PENTING)
+--------------------------------------------------------------------------------
+
+  Nama database  : akira-xmpl-0-0-4
+  Engine         : SQLite
+  Stack          : .NET (ASP.NET Core, CQRS + JWT)
+  Nama tabel     : meja_<nama>          (contoh: meja_toko, meja_log)
+  Primary key    : <tabel>_code  (TEXT 255, selalu NOT NULL)
+  Tipe data      : semua teks -> TEXT 255 | flag -> INTEGER 0/1
+                   | nominal -> NUMERIC (yang dihitung & di-sort)
+  Audit wajib    : softdeleted | createdat | updatedat  (SEMUA tabel)
+  Relasi         : kolom *_code mengarah ke PRIMARY KEY tabel lain
+  CATATAN FK     : skema TIDAK memakai constraint FOREIGN KEY SQLite.
+                   Integritas relasi & anti data yatim DIJAGA di lapisan
+                   aplikasi (port Write / handler), bukan oleh database.
+  Format kode    : di-generate server-side ->
+                   "yyyy/MM/dd/HH:mm:ss_<tabel>_<acak>" (maks 255 karakter).
+                   Contoh: 2026/08/07/10:30:00_meja_toko_A1b2C3d4E5F6
+  PK = internal  : TIDAK pernah ditampilkan di UI. Untuk join & preview
+                   dikirim lewat query string (karena memuat "/" dan ":").
+  Format tanggal : simpan ISO "yyyy-MM-dd HH:mm:ss" agar pengurutan
+                   asc/desc tetap benar sebagai teks.
+  Boolean SQLite : true/false disimpan INTEGER 0/1. Di dokumen ini ditulis
+                   "INTEGER DEFAULT 0" pada versi query.
+
+  INDEX:
+  - Setiap kolom yang sering dipakai untuk filter/join/sort diberi index.
+  - Kombinasi yang HARUS unik diberi UNIQUE INDEX (anti duplikat).
+  - Index dikelola via migrasi EF Core, bukan edit manual DB.
+
+--------------------------------------------------------------------------------
+ B. DAFTAR TABEL
+--------------------------------------------------------------------------------
+
+  No.  Nama tabel        Keterangan singkat
+  ---  -----------------  -----------------------------------------------------
+  01   meja_toko          Cabang/toko perusahaan
+  02   meja_pengguna      Akun pengguna (login/logout)
+  03   meja_biodata       Data diri lengkap pengguna per toko & jabatan
+  04   meja_jabatan       Daftar jabatan/posisi
+  05   meja_target        Daftar target/modul yang diatur hak aksesnya
+                          (pengganti meja_listTable_xmpl di 0-0-3)
+  06   meja_hakakses      Hak akses pengguna per target
+  07   meja_keuangan      Catatan keuangan per pengguna & per toko
+                          (pengganti meja_wallet_xmpl di 0-0-3)
+  08   meja_log           Log audit: create, update, login, logout,
+                          softdelete, restore, permanent delete
+
+--------------------------------------------------------------------------------
+ C. DESAIN TABEL
+--------------------------------------------------------------------------------
+
++-- 01 meja_toko ----------------------------------------------+
+|  toko_code            text 255  not null  primary key      |
+|  toko_name            text 255  not null                   |
+|  toko_address         text 255  not null                   |
+|  toko_email           text 255  not null                   |
+|  toko_phone           text 255  not null                   |
+|  toko_softdeleted     integer    default 0                 |
+|  toko_createdat       text 255  not null                   |
+|  toko_updatedat       text 255  not null                   |
++-------------------------------------------------------------+
+
++-- 02 meja_pengguna ------------------------------------------+
+|  pengguna_code        text 255  not null  primary key      |
+|  pengguna_email       text 255  not null                    |
+|  pengguna_password    text 255  not null  (hash BCrypt)     |
+|  pengguna_nonaktif    integer    default 0                  |
+|  pengguna_softdeleted integer    default 0                  |
+|  pengguna_createdat   text 255  not null                    |
+|  pengguna_updatedat   text 255  not null                    |
++-------------------------------------------------------------+
+  INDEX  : UNIQUE (pengguna_email)
+
++-- 03 meja_biodata -------------------------------------------+
+|  biodata_code         text 255  not null  primary key      |
+|  pengguna_code        text 255  not null  -> meja_pengguna | ini dibuat UNIQUE jadi satu orang cuma boleh punya satu biodata dan saat di ui ini tampil pengguna_email
+|  toko_code            text 255  not null  -> meja_toko     | di ui tampil toko_name
+|  jabatan_code         text 255  not null  -> meja_jabatan  | diui tampil nya jabatan_name
+|  biodata_fullname     text 255  not null                    |
+|  biodata_born         text 255  not null                    |
+|  biodata_address      text 255  not null                    |
+|  biodata_phone        text 255  not null                    |
+|  biodata_softdeleted  integer    default 0                  |
+|  biodata_createdat    text 255  not null                    |
+|  biodata_updatedat    text 255  not null                    |
++-------------------------------------------------------------+
+  INDEX  : pengguna_code (UNIQUE), toko_code, jabatan_code
+
++-- 04 meja_jabatan -------------------------------------------+
+|  jabatan_code         text 255  not null  primary key      |
+|  jabatan_name         text 255  not null                    |
+|  jabatan_softdeleted  integer    default 0                  |
+|  jabatan_createdat    text 255  not null                    |
+|  jabatan_updatedat    text 255  not null                    |
++-------------------------------------------------------------+
+
++-- 05 meja_target --------------------------------------------+
+|  target_code          text 255  not null  primary key      |
+|  target_name          text 255  not null                    | ini akan dinamai sesuai nama table yang ada
+|  target_keterangan    text 255  not null  default ''        |
+|  target_softdeleted   integer    default 0                  |
+|  target_createdat     text 255  not null                    |
+|  target_updatedat     text 255  not null                    |
++-------------------------------------------------------------+
+  KETERANGAN:
+  - meja_target menggantikan meja_listTable_xmpl (0-0-3).
+  - Isinya daftar "target" yang diatur hak aksesnya. target_name
+    SENANTIASA nama tabel (misal "meja_toko", "meja_keuangan",
+    "meja_biodata"). BUKAN nama modul (keputusan revisi v0.0.3).
+  - Nilai target_name dipakai OtoritasService untuk mencocokkan hak
+    akses per pengguna & untuk tampil/sembunyi menu sidebar
+    (plan-0-0-3 bagian A).
+  - target_keterangan opsional, untuk penjelasan singkat isi target.
+
++-- 06 meja_hakakses ------------------------------------------+
+|  hakakses_code        text 255  not null  primary key      |
+|  pengguna_code        text 255  not null  -> meja_pengguna | di ui tampil pengguna_email
+|  target_code          text 255  not null  -> meja_target   | diui tampil target_name
+|  hakakses_read        integer    default 0                  |
+|  hakakses_create      integer    default 0                  |
+|  hakakses_update      integer    default 0                  |
+|  hakakses_delete      integer    default 0                  |
+|  hakakses_login       integer    default 0                  |
+|  hakakses_softdeleted integer    default 0                  |
+|  hakakses_createdat   text 255  not null                    |
+|  hakakses_updatedat   text 255  not null                    |
++-------------------------------------------------------------+
+  INDEX  : UNIQUE (pengguna_code, target_code)  + index target_code
+  ATURAN :
+  - Satu baris = satu pasangan (pengguna, target) yang tidak boleh dobel.
+  - Minimal satu hak harus bernilai 1 (read/create/update/delete/login).
+  - Semantik global: pengguna boleh melakukan aksi jika ADA minimal satu
+    record aktif dengan flag aksi tersebut = 1 (pola 0-0-3).
+
++-- 07 meja_keuangan ------------------------------------------+
+|  keuangan_code        text 255  not null  primary key      |
+|  pengguna_code        text 255  not null  -> meja_pengguna | di ui tampil pengguna_email
+|  toko_code            text 255  not null  -> meja_toko     | di ui tampil toko_name
+|  keuangan_nominal     numeric    not null                  |
+|  keuangan_judul       text 255  not null                    |
+|  keuangan_deskripsi   text 255  not null                    |
+|  keuangan_status      text 255  not null                    |
+|  keuangan_tempat      text 255  not null                    |
+|  keuangan_waktucatat  text 255  not null                    |
+|  keuangan_softdeleted integer    default 0                  |
+|  keuangan_createdat   text 255  not null                    |
+|  keuangan_updatedat   text 255  not null                    |
++-------------------------------------------------------------+
+  INDEX  : pengguna_code, toko_code, keuangan_waktucatat
+  KETERANGAN toko_code : penanda "toko pemilik" catatan keuangan.
+  Dipakai untuk isolasi data per toko (lihat bagian H): user dari toko
+  PLMOG hanya melihat/mengubah catatan dengan toko_code toko miliknya.
+  ENUM   :
+    keuangan_status : masuk | keluar | hilang | pindah
+    keuangan_tempat : tunai | bank | ewallet | others
+
+  ATURAN ARAH UANG:
+    masuk   -> PLUS   (+) nominal ditambahkan
+    keluar  -> MINUS  (-) nominal dikurangi
+    hilang  -> MINUS  (-) nominal dikurangi
+    pindah  -> NETRAL (0) nominal tidak berubah, hanya pindah tempat.
+
++-- 08 meja_log -----------------------------------------------+
+|  log_code             text 255  not null  primary key      |
+|  log_pelaku           text 255  not null  -> meja_pengguna |
+|  log_mencatat         text 255  not null                   |
+|  log_oldvalue         text 255  not null                   |
+|  log_newvalue         text 255  not null                   |
+|  log_target           text 255  not null                   |
+|  log_softdeleted      integer    default 0                  |
+|  log_createdat        text 255  not null                    |
+|  log_updatedat        text 255  not null                    |
++-------------------------------------------------------------+
+  INDEX  : log_pelaku, log_createdat, log_mencatat
+  KETERANGAN:
+  - log_pelaku    : pengguna_code pelaku.
+  - log_mencatat  : aksi, nilai: create | update | login | logout |
+                    softdelete | restore | delete
+                    (create & update ikut dicatat agar SEMUA aksi tulis
+                    terekam, sesuai plan-0-0-3 bagian E)
+  - log_oldvalue  : snapshot nilai SEBELUM aksi (login -> "-").
+  - log_newvalue  : snapshot nilai SESUDAH aksi.
+  - log_target    : sasaran aksi, format "meja_<nama>:kode_record".
+                    contoh: "meja_toko:toko_code=2026/08/07/10:30:00_meja_toko_A1b2C3"
+  - CATATAN : log_pelaku TIDAK memakai constraint FK. Jika pelaku tidak
+    ditemukan (akun dihapus permanen / tidak dikenal), baris log TETAP
+    tampil dengan email kosong -> query memakai LEFT JOIN (bukan inner).
+
+--------------------------------------------------------------------------------
+ D. BAGAN RELASI ANTAR TABEL
+--------------------------------------------------------------------------------
+
+   meja_jabatan   meja_toko          meja_target
+  +-------------+ +----------------+ +----------------+
+  | jabatan_code| | toko_code      | | target_code    |
+  +------+------+ +-------+--------+ +-------+--------+
+         |                |                   |
+         |                v                   v
+         |      +---------+--------+   +------+--------+
+         |      |   meja_biodata    |   | meja_hakakses |
+         |      | biodata_code (PK) |   | hakakses_code |
+         +----->| pengguna_code ----|--+| pengguna_code |
+                | toko_code     ----+   | target_code   |
+                | jabatan_code ----+   +----------------+
+                +---------+--------+           |
+                          |                    |
+                          v                    v
+   meja_pengguna  +-------+---------+     meja_toko
+  +--------------+ | meja_keuangan  |   +-----------+
+  | pengguna_code|<+  pengguna_code |   | toko_code |
+  |  (PK)        | |  toko_code ----|--+|  (PK)     |
+  +------+-------+ +---------------+   +-----------+
+         |
+         +--> meja_hakakses.pengguna_code
+         +--> meja_log.log_pelaku
+
+--------------------------------------------------------------------------------
+ E. CONTOH QUERY (INNER JOIN)
+--------------------------------------------------------------------------------
+
+  CATATAN UMUM:
+  - Query baca SELALU filter softdeleted = 0, kecuali halaman Trash.
+  - Kolom relasi ditampilkan sebagai NAMA (via join), bukan kode.
+  - Pagination : LIMIT <jumlah> OFFSET (<halaman> - 1) * <jumlah>.
+  - Sort & search memakai nama kolom target/tabel asal, bukan hasil join.
+
+E1. LIST BIODATA (join pengguna + toko + jabatan)
+
+  SELECT
+    b.biodata_code,
+    p.pengguna_email,
+    t.toko_name,
+    j.jabatan_name,
+    b.biodata_fullname,
+    b.biodata_phone,
+    b.biodata_createdat
+  FROM meja_biodata AS b
+  INNER JOIN meja_pengguna AS p ON b.pengguna_code = p.pengguna_code
+  INNER JOIN meja_toko     AS t ON b.toko_code     = t.toko_code
+  INNER JOIN meja_jabatan  AS j ON b.jabatan_code  = j.jabatan_code
+  WHERE b.biodata_softdeleted = 0
+  ORDER BY b.biodata_createdat DESC;
+
+E2. LIST BIODATA + SEARCH + SORT + PAGINATION
+
+  SELECT
+    b.biodata_code,
+    p.pengguna_email,
+    t.toko_name,
+    j.jabatan_name,
+    b.biodata_fullname,
+    b.biodata_phone
+  FROM meja_biodata AS b
+  INNER JOIN meja_pengguna AS p ON b.pengguna_code = p.pengguna_code
+  INNER JOIN meja_toko     AS t ON b.toko_code     = t.toko_code
+  INNER JOIN meja_jabatan  AS j ON b.jabatan_code  = j.jabatan_code
+  WHERE b.biodata_softdeleted = 0
+    AND (
+          p.pengguna_email   LIKE '%<kata>%'
+      OR  t.toko_name        LIKE '%<kata>%'
+      OR  j.jabatan_name     LIKE '%<kata>%'
+      OR  b.biodata_fullname LIKE '%<kata>%'
+      OR  b.biodata_phone    LIKE '%<kata>%'
+    )
+  ORDER BY t.toko_name ASC
+  LIMIT 25 OFFSET 0;
+
+E3. LIST HAK AKSES (join pengguna + target)
+
+  SELECT
+    h.hakakses_code,
+    p.pengguna_email,
+    tg.target_name,
+    h.hakakses_read,
+    h.hakakses_create,
+    h.hakakses_update,
+    h.hakakses_delete,
+    h.hakakses_login
+  FROM meja_hakakses AS h
+  INNER JOIN meja_pengguna AS p  ON h.pengguna_code = p.pengguna_code
+  INNER JOIN meja_target    AS tg ON h.target_code   = tg.target_code
+  WHERE h.hakakses_softdeleted = 0
+    AND p.pengguna_email LIKE '%<email>%'
+  ORDER BY p.pengguna_email ASC, tg.target_name ASC;
+
+E4. LIST KEUANGAN (join pengguna + toko + filter status)
+
+  SELECT
+    k.keuangan_code,
+    p.pengguna_email,
+    t.toko_name,
+    k.keuangan_nominal,
+    k.keuangan_status,
+    k.keuangan_tempat,
+    k.keuangan_waktucatat,
+    k.keuangan_judul
+  FROM meja_keuangan AS k
+  INNER JOIN meja_pengguna AS p ON k.pengguna_code = p.pengguna_code
+  INNER JOIN meja_toko     AS t ON k.toko_code     = t.toko_code
+  WHERE k.keuangan_softdeleted = 0
+    AND k.keuangan_status = 'keluar'
+    AND t.toko_name LIKE '%<nama toko>%'
+  ORDER BY k.keuangan_waktucatat DESC;
+
+E4b. LIST KEUANGAN PER TOKO (contoh isolasi data - user toko PLMOG)
+
+  SELECT
+    k.keuangan_code,
+    p.pengguna_email,
+    t.toko_name,
+    k.keuangan_nominal,
+    k.keuangan_status,
+    k.keuangan_tempat,
+    k.keuangan_waktucatat
+  FROM meja_keuangan AS k
+  INNER JOIN meja_pengguna AS p ON k.pengguna_code = p.pengguna_code
+  INNER JOIN meja_toko     AS t ON k.toko_code     = t.toko_code
+  WHERE k.keuangan_softdeleted = 0
+    AND t.toko_name = 'pepper lunch mog'     -- hanya data toko sendiri
+  ORDER BY k.keuangan_waktucatat DESC;
+
+E5. SALDO KEUANGAN PER PENGGUNA
+  (masuk + | keluar & hilang - | pindah netral 0)
+
+  SELECT
+    p.pengguna_code,
+    p.pengguna_email,
+    SUM(
+      CASE
+        WHEN k.keuangan_status = 'masuk'  THEN k.keuangan_nominal
+        WHEN k.keuangan_status = 'keluar' THEN -k.keuangan_nominal
+        WHEN k.keuangan_status = 'hilang' THEN -k.keuangan_nominal
+        ELSE 0                                -- pindah = netral
+      END
+    ) AS saldo_total
+  FROM meja_keuangan AS k
+  INNER JOIN meja_pengguna AS p ON k.pengguna_code = p.pengguna_code
+  WHERE k.keuangan_softdeleted = 0
+  GROUP BY p.pengguna_code, p.pengguna_email
+  ORDER BY saldo_total DESC;
+
+E5b. SALDO KEUANGAN PER PENGGUNA PER TOKO (isolasi data)
+
+  SELECT
+    p.pengguna_code,
+    p.pengguna_email,
+    SUM(
+      CASE
+        WHEN k.keuangan_status = 'masuk'  THEN k.keuangan_nominal
+        WHEN k.keuangan_status = 'keluar' THEN -k.keuangan_nominal
+        WHEN k.keuangan_status = 'hilang' THEN -k.keuangan_nominal
+        ELSE 0
+      END
+    ) AS saldo_total
+  FROM meja_keuangan AS k
+  INNER JOIN meja_pengguna AS p ON k.pengguna_code = p.pengguna_code
+  WHERE k.keuangan_softdeleted = 0
+    AND k.toko_code = '<toko_code_plmog>'     -- hanya data toko sendiri
+  GROUP BY p.pengguna_code, p.pengguna_email
+  ORDER BY saldo_total DESC;
+
+E6. RINCIAN SALDO PER TEMPAT (tunai/bank/ewallet/others)
+
+  SELECT
+    k.keuangan_tempat,
+    SUM(
+      CASE
+        WHEN k.keuangan_status = 'masuk'  THEN k.keuangan_nominal
+        WHEN k.keuangan_status = 'keluar' THEN -k.keuangan_nominal
+        WHEN k.keuangan_status = 'hilang' THEN -k.keuangan_nominal
+        ELSE 0
+      END
+    ) AS saldo_per_tempat
+  FROM meja_keuangan AS k
+  INNER JOIN meja_pengguna AS p ON k.pengguna_code = p.pengguna_code
+  WHERE k.keuangan_softdeleted = 0
+    AND p.pengguna_code = '<pengguna_code>'
+  GROUP BY k.keuangan_tempat
+  ORDER BY saldo_per_tempat DESC;
+
+E6b. RINCIAN SALDO PER TEMPAT PER TOKO (isolasi data)
+
+  SELECT
+    t.toko_name,
+    k.keuangan_tempat,
+    SUM(
+      CASE
+        WHEN k.keuangan_status = 'masuk'  THEN k.keuangan_nominal
+        WHEN k.keuangan_status = 'keluar' THEN -k.keuangan_nominal
+        WHEN k.keuangan_status = 'hilang' THEN -k.keuangan_nominal
+        ELSE 0
+      END
+    ) AS saldo_per_tempat
+  FROM meja_keuangan AS k
+  INNER JOIN meja_toko AS t ON k.toko_code = t.toko_code
+  WHERE k.keuangan_softdeleted = 0
+    AND t.toko_name = 'kimukatsu mog'       -- hanya data toko sendiri
+  GROUP BY t.toko_name, k.keuangan_tempat
+  ORDER BY saldo_per_tempat DESC;
+
+E7. LOG AUDIT (pelaku + filter) - MEMAKAI LEFT JOIN
+
+  SELECT
+    l.log_code,
+    p.pengguna_email AS pelaku_email,   -- kosong jika pelaku tak dikenal
+    l.log_mencatat,
+    l.log_oldvalue,
+    l.log_newvalue,
+    l.log_target,
+    l.log_createdat
+  FROM meja_log AS l
+  LEFT JOIN meja_pengguna AS p ON l.log_pelaku = p.pengguna_code
+  WHERE l.log_softdeleted = 0
+    AND l.log_createdat >= '<dari> 00:00:00'
+    AND l.log_createdat <= '<sampai> 23:59:59'
+  ORDER BY l.log_createdat DESC
+  LIMIT 25 OFFSET 0;
+
+  CATATAN: log memakai LEFT JOIN karena pelaku mungkin sudah tidak ada
+  (akun dihapus permanen). Baris log TIDAK boleh hilang -> pakai LEFT.
+
+E8. TRASH LIST (data softdeleted) - contoh meja_toko
+
+  SELECT toko_code, toko_name, toko_createdat, toko_updatedat
+  FROM meja_toko
+  WHERE toko_softdeleted = 1
+  ORDER BY toko_updatedat DESC;
+
+--------------------------------------------------------------------------------
+ F. VERSI QUERY SQLITE (SIAP DIEKSEKUSI)
+--------------------------------------------------------------------------------
+
+  Cara pakai:
+    sqlite3 akira-xmpl-0-0-4.db < plan-0-0-1.txt
+  atau jalankan tiap blok CREATE TABLE di bawah satu per satu.
+
+----------------------------------------------------------------------
+
+CREATE TABLE meja_toko (
+  toko_code           TEXT(255) NOT NULL PRIMARY KEY,
+  toko_name           TEXT(255) NOT NULL,
+  toko_address        TEXT(255) NOT NULL,
+  toko_email          TEXT(255) NOT NULL,
+  toko_phone          TEXT(255) NOT NULL,
+  toko_softdeleted    INTEGER DEFAULT 0,
+  toko_createdat      TEXT(255) NOT NULL,
+  toko_updatedat      TEXT(255) NOT NULL
+);
+
+CREATE TABLE meja_pengguna (
+  pengguna_code       TEXT(255) NOT NULL PRIMARY KEY,
+  pengguna_email      TEXT(255) NOT NULL,
+  pengguna_password   TEXT(255) NOT NULL,
+  pengguna_nonaktif   INTEGER DEFAULT 0,
+  pengguna_softdeleted INTEGER DEFAULT 0,
+  pengguna_createdat  TEXT(255) NOT NULL,
+  pengguna_updatedat  TEXT(255) NOT NULL
+);
+CREATE UNIQUE INDEX idx_pengguna_email ON meja_pengguna(pengguna_email);
+
+CREATE TABLE meja_jabatan (
+  jabatan_code        TEXT(255) NOT NULL PRIMARY KEY,
+  jabatan_name        TEXT(255) NOT NULL,
+  jabatan_softdeleted INTEGER DEFAULT 0,
+  jabatan_createdat   TEXT(255) NOT NULL,
+  jabatan_updatedat   TEXT(255) NOT NULL
+);
+
+CREATE TABLE meja_biodata (
+  biodata_code        TEXT(255) NOT NULL PRIMARY KEY,
+  pengguna_code       TEXT(255) NOT NULL,
+  toko_code           TEXT(255) NOT NULL,
+  jabatan_code        TEXT(255) NOT NULL,
+  biodata_fullname    TEXT(255) NOT NULL,
+  biodata_born        TEXT(255) NOT NULL,
+  biodata_address     TEXT(255) NOT NULL,
+  biodata_phone       TEXT(255) NOT NULL,
+  biodata_softdeleted INTEGER DEFAULT 0,
+  biodata_createdat   TEXT(255) NOT NULL,
+  biodata_updatedat   TEXT(255) NOT NULL
+);
+CREATE UNIQUE INDEX idx_biodata_pengguna ON meja_biodata(pengguna_code);
+CREATE INDEX idx_biodata_toko    ON meja_biodata(toko_code);
+CREATE INDEX idx_biodata_jabatan ON meja_biodata(jabatan_code);
+
+CREATE TABLE meja_target (
+  target_code         TEXT(255) NOT NULL PRIMARY KEY,
+  target_name         TEXT(255) NOT NULL,
+  target_keterangan   TEXT(255) NOT NULL DEFAULT '',
+  target_softdeleted  INTEGER DEFAULT 0,
+  target_createdat    TEXT(255) NOT NULL,
+  target_updatedat    TEXT(255) NOT NULL
+);
+
+CREATE TABLE meja_hakakses (
+  hakakses_code       TEXT(255) NOT NULL PRIMARY KEY,
+  pengguna_code       TEXT(255) NOT NULL,
+  target_code         TEXT(255) NOT NULL,
+  hakakses_read       INTEGER DEFAULT 0,
+  hakakses_create     INTEGER DEFAULT 0,
+  hakakses_update     INTEGER DEFAULT 0,
+  hakakses_delete     INTEGER DEFAULT 0,
+  hakakses_login      INTEGER DEFAULT 0,
+  hakakses_softdeleted INTEGER DEFAULT 0,
+  hakakses_createdat  TEXT(255) NOT NULL,
+  hakakses_updatedat  TEXT(255) NOT NULL
+);
+CREATE UNIQUE INDEX idx_hakakses_pengguna_target ON meja_hakakses(pengguna_code, target_code);
+CREATE INDEX idx_hakakses_target ON meja_hakakses(target_code);
+
+CREATE TABLE meja_keuangan (
+  keuangan_code       TEXT(255) NOT NULL PRIMARY KEY,
+  pengguna_code       TEXT(255) NOT NULL,
+  toko_code           TEXT(255) NOT NULL,
+  keuangan_nominal    NUMERIC     NOT NULL,
+  keuangan_judul      TEXT(255) NOT NULL,
+  keuangan_deskripsi  TEXT(255) NOT NULL,
+  keuangan_status     TEXT(255) NOT NULL,
+  keuangan_tempat     TEXT(255) NOT NULL,
+  keuangan_waktucatat TEXT(255) NOT NULL,
+  keuangan_softdeleted INTEGER DEFAULT 0,
+  keuangan_createdat  TEXT(255) NOT NULL,
+  keuangan_updatedat  TEXT(255) NOT NULL
+);
+CREATE INDEX idx_keuangan_pengguna ON meja_keuangan(pengguna_code);
+CREATE INDEX idx_keuangan_toko     ON meja_keuangan(toko_code);
+CREATE INDEX idx_keuangan_waktucatat ON meja_keuangan(keuangan_waktucatat);
+
+CREATE TABLE meja_log (
+  log_code            TEXT(255) NOT NULL PRIMARY KEY,
+  log_pelaku          TEXT(255) NOT NULL,
+  log_mencatat        TEXT(255) NOT NULL,
+  log_oldvalue        TEXT(255) NOT NULL,
+  log_newvalue        TEXT(255) NOT NULL,
+  log_target          TEXT(255) NOT NULL,
+  log_softdeleted     INTEGER DEFAULT 0,
+  log_createdat       TEXT(255) NOT NULL,
+  log_updatedat       TEXT(255) NOT NULL
+);
+CREATE INDEX idx_log_pelaku   ON meja_log(log_pelaku);
+CREATE INDEX idx_log_createdat ON meja_log(log_createdat);
+CREATE INDEX idx_log_mencatat ON meja_log(log_mencatat);
+
+----------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+ G. ATURAN DATA (SEED) - AKUN AWAL & TOKO
+--------------------------------------------------------------------------------
+
+  Berikut daftar akun awal yang di-seed ke database.   Password pada
+  dokumen ini hanyalah default dev; saat diisi ke DB selalu di-hash
+  BCrypt (lihat plan-0-0-2 item 4).
+
+  DAFTAR TOKO:
+    toko_code            toko_name          keterangan
+    -------------------  -----------------  ------------------------------
+    <generate>           developer          toko pemilik Kobo (superuser)
+    <generate>           pepper lunch mog   toko PLMOG
+    <generate>           kimukatsu mog      toko KMMOG
+
+  DAFTAR JABATAN:
+    developer | admin | stockkeeper | kitchen | kasir
+
+  DAFTAR AKUN (email & password default):
+
+    No.  Akun              Jabatan      Toko            Email                                   Password
+    ---  ----------------  -----------  -------------   -------------------------------------  -------------
+    01   Kobo Kanaeru      developer    developer       kobo.kanaeru@developer.com               kobopawanghujan
+    02   Admin PLMOG       admin        pepper lunch mog  admin.pepper.lunch.mog@gmail.com        12345678
+    03   Stockkeeper PLMOG stockkeeper  pepper lunch mog  stockkeeper.pepper.lunch.mog@gmail.com  12345678
+    04   Kitchen PLMOG     kitchen      pepper lunch mog  kitchen.pepper.lunch.mog@gmail.com      12345678
+    05   Kasir PLMOG       kasir        pepper lunch mog  kasir.pepper.lunch.mog@gmail.com        12345678
+    06   Admin KMMOG       admin        kimukatsu mog     admin.kimukatsu.mog@gmail.com           12345678
+    07   Stockkeeper KMMOG stockkeeper  kimukatsu mog     stockkeeper.kimukatsu.mog@gmail.com     12345678
+    08   Kitchen KMMOG     kitchen      kimukatsu mog     kitchen.kimukatsu.mog@gmail.com         12345678
+    09   Kasir KMMOG       kasir        kimukatsu mog     kasir.kimukatsu.mog@gmail.com           12345678
+
+  CATATAN:
+  - Data seed adalah DATA TETAP (deterministik): email, password, toko,
+    jabatan ditulis tetap, TIDAK memakai Bogus (acak). Seeder harus
+    idempotent: dijalankan berulang memberi hasil yang sama. Bogus hanya
+    untuk data test acak (plan-0-0-2 item 30).
+  - Password 12345678 hanya untuk dev; sebelum produksi wajib diganti.
+  - Kobo jabatan developer + toko developer = akun superuser.
+
+--------------------------------------------------------------------------------
+ H. ATURAN ISOLASI DATA (SCOPED ACCESS)
+--------------------------------------------------------------------------------
+
+  Tujuan: setiap pengguna hanya bisa melihat & mengubah data milik
+  TOKONYA SENDIRI dan milik DIRINYA SENDIRI.
+
+  1. SUMBER TOKO PENGGUNA:
+     Toko seorang pengguna ditentukan lewat meja_biodata:
+     biodata.pengguna_code = pengguna AND biodata.toko_code = toko.
+     (1 pengguna = 1 biodata = 1 toko, pengguna_code UNIQUE.)
+
+  2. TARGET DATA & TOKO PEMILIK:
+     Setiap record data yang "ber-toko" wajib mencatat toko pemiliknya:
+       - meja_biodata    -> kolom toko_code
+       - meja_keuangan   -> kolom toko_code (keputusan: tambah kolom)
+     Record lain mengikuti pemiliknya lewat relasi (contoh: meja_log
+     mengikuti pelaku, meja_hakakses mengikuti pengguna).
+
+  3. ATURAN AKSES:
+     - SUPERUSER (Kobo, jabatan developer, toko developer):
+       bisa CRUD SEMUA data, semua toko, semua target.
+     - PENGGUNA BIASA (jabatan admin/stockkeeper/kitchen/kasir):
+       a. Hanya record yang toko_code-nya = toko miliknya, DAN
+       b. Hanya record yang pengguna_code-nya = dirinya sendiri
+          (untuk data pribadi seperti keuangan miliknya).
+       Aturan (a) dan (b): boleh diakses jika SALAH SATU terpenuhi,
+       keduanya dinilai per target. Orang KMMOG tidak bisa melihat/
+       mengubah data PLMOG, begitu juga sebaliknya.
+
+  4. IMPLEMENTASI DI QUERY:
+     - Setiap query list/detail/trash Read WAJIB menyertakan filter
+       toko_code (kecuali superuser). Contoh: E4b, E5b, E6b.
+     - Setiap command Write WAJIB menolak (403) jika record target
+       bukan milik tokonya (kecuali superuser).
+     - OtoritasService memeriksa: (hak target) + (toko_code cocok).
+
+  CONTOH FILTER UNTUK PENGGUNA BIASA (kasir PLMOG):
+
+  SELECT
+    k.keuangan_code,
+    p.pengguna_email,
+    t.toko_name,
+    k.keuangan_nominal,
+    k.keuangan_status,
+    k.keuangan_tempat,
+    k.keuangan_waktucatat
+  FROM meja_keuangan AS k
+  INNER JOIN meja_pengguna AS p ON k.pengguna_code = p.pengguna_code
+  INNER JOIN meja_toko     AS t ON k.toko_code     = t.toko_code
+  WHERE k.keuangan_softdeleted = 0
+    AND k.toko_code = '<toko_plmog>'          -- milik toko sendiri
+  ORDER BY k.keuangan_waktucatat DESC;
+
+  5. TABEL GLOBAL (TIDAK BER-TOKO) - keputusan revisi v0.0.3:
+     meja_toko, meja_jabatan, meja_target, meja_pengguna, meja_hakakses,
+     meja_log TIDAK punya kolom toko_code -> TIDAK terscoped per toko.
+     Aturan untuk pengguna biasa:
+       a. BACA  : boleh melihat SEMUA record tabel global (data
+                  referensi), asalkan punya hak baca pada target itu.
+       b. TULIS : create/update/delete/softdelete/restore hanya boleh
+                  jika punya hak akses pada target itu.
+       c. MASTER SENSITIF : meja_toko, meja_jabatan, meja_target hanya
+                  bisa diubah oleh SUPERUSER (Kobo). Pengguna biasa
+                  TIDAK bisa mengubah daftar toko/jabatan/target meski
+                  punya hak, karena bisa merusak data semua toko.
+     Log & hakakses mengikuti pemiliknya (plan-0-0-1 C): meja_log ->
+     pelaku, meja_hakakses -> pengguna. Detail tampilan menyesuaikan
+     hak yang dibaca (user biasa tidak melihat baris hak user lain
+     kecuali diberi hak baca).
+
+--------------------------------------------------------------------------------
+ I. CATATAN REVISI
+--------------------------------------------------------------------------------
+
+  v0.0.1 : 2026-08-07 - draf awal 8 tabel meja_toko, meja_pengguna,
+           meja_biodata, meja_jabatan, meja_target, meja_hakakses,
+           meja_keuangan, meja_log; konvensi penulisan (PK generate,
+           audit wajib, tanpa FK constraint), index, contoh query
+           inner join (biodata, hakakses, keuangan, saldo, log pakai
+           left join), versi SQLite siap eksekusi.
+  v0.0.2 : 2026-08-07 - tambah kolom toko_code di meja_keuangan +
+           index idx_keuangan_toko; query E4/E5/E6 + varian per toko
+           (E4b/E5b/E6b); bagian baru G (aturan data seed: Kobo
+           superuser + 8 akun PLMOG/KMMOG, password default),
+           H (isolasi data scoped per toko: hanya toko sendiri &
+           data sendiri); bagian catatan revisi pindah jadi I.
+            Masih ada catatan di bawah file ini (isi ulang yang lama
+            dipindahkan ke bagian G).
+   v0.0.3 : 2026-08-07 - perbaikan konsistensi hasil audit trilogi:
+            hapus rujukan "aturan D6" (tidak ada) -> rujuk plan-0-0-2
+            item 4; log_mencatat ditambah create & update (plan-0-0-3 E
+            mewajibkan SEMUA aksi tulis tercatat); idx_biodata_pengguna
+            jadi UNIQUE (1 pengguna = 1 biodata); target_name ditegaskan
+            = nama tabel (bukan modul); seed ditegaskan data tetap
+            deterministik (Bogus hanya untuk test); tambah H.5 tabel
+            global: baca semua, tulis via hakakses, edit master sensitif
+            (toko/jabatan/target) hanya superuser.
+
+  Terakhir diedit : 07-Agustus-2026
+  Oleh            : Kobo Kanaeru (asisten opencode) bersama pemilik proyek
+================================================================================

@@ -1,0 +1,322 @@
+================================================================================
+  PLAN 0.0.3 - BLUEPRINT ALUR APLIKASI & UI
+  Proyek   : mvc-akira-xmpl-0-0-4
+  Tanggal  : 2026-08-07
+  Status   : DRAFT - dibahas dulu sebelum implementasi
+  Isi      : alur halaman, layout macOS sidebar kiri, komponen tabel generik
+             (pagination 5/25/50/75/100, sort asc/desc, search live, preview),
+             alur CRUD + trash + isolasi data per toko.
+  Trilogi  : plan-0-0-1.txt (query + inner join)
+             plan-0-0-2.txt (komponen / stack)
+             plan-0-0-3.txt (blueprint alur & UI)  <- file ini
+  Acuan UI : mvc-akira-xmpl-0-0-3 (KONFIG generik + partials/tabel.html)
+  Prinsip  : "bergerak perlahan & matang" - blueprint dulu, lalu eksekusi
+             fase demi fase, tanpa perubahan raksasa.
+================================================================================
+
+--------------------------------------------------------------------------------
+  A. STRUKTUR HALAMAN (macOS STYLE - SIDEBAR KIRI)
+--------------------------------------------------------------------------------
+
+  Seluruh aplikasi memakai SATU kerangka halaman (shell) dengan sidebar
+  di kiri (macOS / Finder style: daftar menu berkelompok), konten di
+  kanan. Konten berubah tanpa reload penuh.
+
+  SKETSA KERANGKA (desktop):
+
+  +--------------------------------------------------------------+
+  |  topbar: logo kecil | judul halaman            | akun + logout |
+  +--------+-----------------------------------------------------+
+  |        |                                                     |
+  |  SIDE  |   konten halaman (berubah sesuai menu)              |
+  |  BAR   |                                                     |
+  |        |   - dashboard (kartu + grafik)                      |
+  |  KIRI  |   - tabel data (list + search + sort + pagination)  |
+  |        |   - form CRUD (modal)                               |
+  |        |   - preview detail (modal)                          |
+  |        |   - trash (restore / hapus permanen)                |
+  |        |   - log audit                                       |
+  |        |                                                     |
+  +--------+-----------------------------------------------------+
+
+  GROUP MENU DI SIDE BAR (urut, mengikuti domain 0-0-4):
+
+  ATURAN UMUM
+    [ ] Dashboard            -> ringkasan + grafik (keuangan per tempat)
+    [ ] Log Audit            -> meja_log (filter pelaku/tabel/tanggal)
+
+  MASTER DATA
+    [ ] Toko                 -> meja_toko
+    [ ] Pengguna             -> meja_pengguna (list, aktif/nonaktif, reset)
+    [ ] Biodata              -> meja_biodata (join pengguna+toko+jabatan)
+    [ ] Jabatan              -> meja_jabatan
+
+  HAK AKSES
+    [ ] Target               -> meja_target (daftar target/tabel)
+    [ ] Hak Akses            -> meja_hakakses (grant/revoke per pengguna)
+
+  KEUANGAN
+    [ ] Keuangan             -> meja_keuangan (+ kartu saldo & per tempat)
+
+  CATATAN:
+  - Menu "Pengguna" tidak menyimpan data tabungan; hanya kelola akun.
+  - Data keuangan & biodata adalah "ber-toko" (isolasi plan-0-0-1 H).
+  - Menu yang tampil bisa dibatasi oleh hak akses pengguna (hidden jika
+    tidak punya hak baca target itu).
+  - Tabel global (toko, jabatan, target, pengguna, hakakses, log): bisa
+    dibaca semua user yang punya hak; edit master sensitif (toko,
+    jabatan, target) hanya superuser (keputusan plan-0-0-1 H.5).
+
+  SKETSA SIDE BAR macOS-STYLE (kelompok dengan sub-poin):
+
+  +----------------------+
+  |  LEMARI AKIRA        |
+  +----------------------+
+  |  ATURAN UMUM         |
+  |   > Dashboard        |
+  |   > Log Audit        |
+  |                      |
+  |  MASTER DATA         |
+  |   > Toko             |
+  |   > Pengguna         |
+  |   > Biodata          |
+  |   > Jabatan          |
+  |                      |
+  |  HAK AKSES           |
+  |   > Target           |
+  |   > Hak Akses        |
+  |                      |
+  |  KEUANGAN            |
+  |   > Keuangan         |
+  |                      |
+  |  [akun: email]       |
+  |  [keluar]            |
+  +----------------------+
+
+--------------------------------------------------------------------------------
+  B. KOMPONEN TABEL GENERIK (DIPAKAI SEMUA HALAMAN LIST)
+--------------------------------------------------------------------------------
+
+  Satu komponen tabel yang dipakai ulang, dikonfigurasi per halaman
+  (pola KONFIG generik 0-0-3). Fitur wajib:
+
+  B1. PAGINATION - limit 5 / 25 / 50 / 75 / 100 (default 25)
+      - Dropdown pilihan limit di atas tabel.
+      - Navigasi: tombol Prev / Next + info halaman
+        "Menampilkan 1-25 dari 120" + tombol halaman.
+      - Backend: ?page=<n>&limit=<m> -> PageResult { list, total, page,
+        limit, totalPages }.
+      - Validator limit: hanya terima {5,25,50,75,100}, selain itu 400.
+
+  B2. SORT ASC / DESC
+      - Klik judul kolom -> toggle asc/desc + panah ▲/▼.
+      - Backend: ?sort=<field>&dir=asc|desc.
+      - Sort memakai nama kolom tabel asal, bukan hasil join
+        (plan-0-0-1 CATATAN UMUM).
+      - Validator: sort harus dikenal per tabel; dir hanya asc/desc.
+
+  B3. SEARCH LIVE
+      - Input cari di atas tabel; pencarian otomatis (debounce 300ms).
+      - Backend: ?search=<kata> (LIKE ke semua kolom, case-insensitive).
+      - Untuk tabel join (biodata, hakakses, keuangan): search juga ke
+        kolom hasil join (email, nama toko, nama jabatan).
+      - Tombol reset mengosongkan search + kembali halaman 1.
+
+  B4. PREVIEW (detail lengkap satu record)
+      - Tombol "lihat" per baris -> modal preview data lengkap by PK.
+      - PK dikirim lewat QUERY STRING ?code=... (tidak di path URL).
+      - Menampilkan kolom relasi sebagai NAMA (email, nama toko, dll).
+
+  B5. KOLOM RELASI TAMPIL SEBAGAI NAMA
+      - biodata.pengguna_code -> tampil pengguna_email
+      - biodata.toko_code     -> tampil toko_name
+      - biodata.jabatan_code  -> tampil jabatan_name
+      - hakakses.pengguna_code -> pengguna_email
+      - hakakses.target_code   -> target_name
+      - keuangan.pengguna_code -> pengguna_email
+      - keuangan.toko_code     -> toko_name
+
+  STRUKTUR KONFIG PER HALAMAN (konsep, disesuaikan saat implementasi):
+      { nama, route, kodeField, cari, saldo?, kolom[],
+        form[], detail[], aksi[] }
+
+  CATATAN: komponen ini ditulis SEKALI (app.js / komponen), lalu semua
+  halaman list hanya menambah KONFIG. TIDAK menulis tabel manual per
+  halaman (pola 0-0-3, sudah terbukti).
+
+--------------------------------------------------------------------------------
+  C. ALUR HALAMAN LIST (SEMUA TABEL, URUTAN EKSEKUSI)
+--------------------------------------------------------------------------------
+
+  1. Buka halaman -> muat KONFIG tabel -> tampilkan kolom + placeholder.
+  2. Axios GET route + query default (page=1, limit=25, sort=<default>,
+     dir=asc, search='').
+  3. Render baris; kolom relasi di-join ke nama (lihat B5).
+  4. User mengetik search -> debounce 300ms -> GET dengan search -> render
+     ulang (reset ke page=1).
+  5. User klik kolom -> toggle sort -> GET dengan sort+dir -> render.
+  6. User ganti limit / pindah halaman -> GET dengan page+limit -> render.
+  7. Klik "lihat" -> GET detail ?code= -> modal preview.
+  8. Klik "ubah" -> modal form (isi dari detail) -> PUT.
+  9. Klik "tambah" -> modal form kosong -> POST.
+  10. Klik "sampah" (soft delete) -> konfirmasi SweetAlert2 -> POST
+      softdelete -> refresh list.
+  11. Menu "Sampah" -> GET trash -> list softdeleted -> tombol
+      "kembalikan" (restore) / "hapus permanen" (delete).
+
+  ISOLASI DATA (plan-0-0-1 H) diterapkan otomatis di list ini:
+  - Tabel ber-toko (biodata, keuangan): bukan superuser -> GET
+    menyertakan toko_code miliknya; tampilan tidak pernah menampilkan
+    data toko lain.
+  - Tabel global (toko, jabatan, target, pengguna, hakakses, log):
+    bisa dibaca semua user berhak (data referensi); tombol tulis hanya
+    muncul jika punya hak akses; edit master sensitif (toko/jabatan/
+    target) disembunyikan untuk non-superuser (plan-0-0-1 H.5).
+
+--------------------------------------------------------------------------------
+  D. ALUR LOGIN / REGISTER / LOGOUT
+--------------------------------------------------------------------------------
+
+  LOGIN (port 5001 /api/auth/login):
+    1. Form email + password.
+    2. Validasi -> cek pengguna aktif (pengguna_nonaktif=0) + hakakses_login.
+    3. Berhasil -> terima JWT, simpan di localStorage.
+    4. Redirect ke Dashboard.
+    Gagal: email/sandi salah (401), akun nonaktif (401 pesan jelas),
+    rate limit 429.
+
+  REGISTER (port 5001 /api/auth/register):
+    1. Form email + password (min 8).
+    2. Hash BCrypt -> simpan pengguna_baru (belum ada hak -> belum bisa
+       login, menunggu admin grant hak).
+    CATATAN 0-0-4: pengguna baru perlu biodata + hak akses dari admin
+    (Kobo) sebelum bisa login.
+
+  LOGOUT:
+    1. Hapus token di localStorage.
+    2. Catat log "logout" (opsional, jika token valid).
+    3. Redirect ke halaman login.
+
+  PENGELOLAAN AKUN OLEH ADMIN (menu Pengguna):
+    - Lihat daftar pengguna (email + status aktif/nonaktif).
+    - Ubah email.
+    - Reset password (admin set password baru).
+    - Aktif/nonaktif akun (tidak boleh menonaktifkan diri sendiri).
+
+--------------------------------------------------------------------------------
+  E. ALUR CRUD LENGKAP SATU FITUR (baku, dipakai tiap tabel)
+--------------------------------------------------------------------------------
+
+  POST   /api/<target>          -> buat (generate PK, catat log)
+  PUT    /api/<target>          -> ubah (cek ada, catat log old->new)
+  POST   /api/<target>/soft-delete -> softdelete (catat log)
+  POST   /api/<target>/restore  -> kembalikan dari trash (catat log)
+  DELETE /api/<target>/permanent-> hapus permanen (WAJIB log + anti orphan)
+  GET    /api/<target>          -> list (search/sort/pagination + toko_code)
+  GET    /api/<target>?code=    -> detail by PK (query string)
+  GET    /api/<target>/trash    -> list softdeleted
+
+  ALUR MIKRO TAMBAH (contoh, berlaku semua):
+    Buka modal form -> isi -> kirim POST -> sukses: toast + refresh list;
+    gagal: tampilkan pesan validasi dari FluentValidation (400) di form.
+
+  ATURAN (dari plan-0-0-1 & 0-0-2):
+    - Semua aksi tulis dicatat ke meja_log.
+    - Anti orphan: record yang masih dirujuk tidak bisa dihapus.
+    - Hapus permanen hanya lewat menu Sampah / fungsi khusus.
+    - Isolasi toko: tulis toko lain -> 403.
+
+--------------------------------------------------------------------------------
+  F. DASHBOARD (ringkasan)
+--------------------------------------------------------------------------------
+
+  Kartu angka:
+    - Jumlah toko, pengguna, biodata, jabatan, target.
+    - Saldo keuangan total + saldo per tempat (tunai/bank/ewallet/others).
+    - (isolasi: user biasa melihat angka tokonya sendiri)
+
+  Grafik:
+    - Pie/bar saldo per tempat (dibuat di FASE 9, dashboard).
+    - Line pemasukan vs pengeluaran per bulan (fase lanjut, dibahas saat
+      FASE 9/11; tidak wajib di rilis awal).
+
+  Log aktivitas terbaru (opsional): 5 baris log terakhir.
+
+--------------------------------------------------------------------------------
+  G. ALUR DEBUGGING / PELACAKAN ERROR (pendamping plan-0-0-2 H)
+--------------------------------------------------------------------------------
+
+  Saat halaman error, cek berurutan:
+    1. Konsol browser  -> error JS / 401 / 400 (respon ProblemDetails).
+    2. Network tab      -> URL diminta, status, body respons.
+    3. Log service      -> Serilog (file per service) mencatat exception.
+    4. MiniProfiler     -> query mana yang lambat / N+1 (dev).
+    5. DB               -> buka .db dengan DB Browser cek data/struktur.
+
+  Setiap bug dicatat ke folder dokumentasi (today/, bug/, fixed/) sesuai
+  kebiasaan 0-0-3 sebelum diperbaiki.
+
+--------------------------------------------------------------------------------
+  H. STRUKTUR FOLDER FRONTEND (USULAN, akan disesuaikan)
+--------------------------------------------------------------------------------
+
+  wwwroot/
+    index.html          -> shell (topbar + sidebar + konten)
+    js/
+      config.js         -> KONFIG semua tabel + OPSI_SUMBER + BATAS_HALAMAN
+      api.js            -> Axios instance + interceptor Bearer token
+      app.js            -> komponen tabel generik + navigasi + dashboard
+      sidebar.js        -> render menu + kontrol hak akses (jika perlu)
+    partials/
+      dashboard.html
+      tabel.html        -> komponen tabel generik (search/sort/pagination)
+      form.html         -> form CRUD (rendered dari KONFIG.form)
+      preview.html      -> modal detail
+      trash.html        -> daftar sampah (restore/hapus permanen)
+      log.html          -> halaman log audit (filter)
+      login.html
+
+  CATATAN: struktur ini memakai HTML partial + render JS (pola 0-0-3);
+  HTMX digunakan untuk navigasi/partial, Axios untuk API ber-token.
+
+--------------------------------------------------------------------------------
+  I. URUTAN PENGERJAAN (fase kecil, tiap fase = validasi penuh)
+--------------------------------------------------------------------------------
+
+  FASE 0 : Persetujuan blueprint (file ini) + trilogi lengkap.
+  FASE 1 : Scaffolding solusi 0-0-4 (Shared/Auth/Read/Write/Frontend/Seeder)
+           + package dari plan-0-0-2 + CORS + /health.
+  FASE 2 : DbContext + 8 entity + migrasi awal + seeder (plan-0-0-1 G:
+           Kobo + 8 akun PLMOG/KMMOG) + verifikasi tabel di sqlite3.
+  FASE 3 : LogService + OtoritasService (hak per target + isolasi toko
+           plan-0-0-1 H) + ProblemDetails + GlobalExceptionHandler.
+  FASE 4 : Auth port 5001 (register/login/logout + rate limit + JWT).
+  FASE 5 : CQRS Read/Write pertama (contoh: toko) end-to-end.
+  FASE 6 : Master CRUD: toko, jabatan, pengguna, biodata, target.
+  FASE 7 : Hak akses (meja_hakakses) + filter Otoritas global.
+  FASE 8 : Keuangan (CRUD + saldo + isolasi toko).
+  FASE 9 : Frontend shell (sidebar macOS) + login + dashboard + tabel
+           generik (pagination/sort/search/preview) + trash.
+  FASE 10: Testing (unit + integration) + ApiPosture + MiniProfiler.
+  FASE 11: Dokumentasi, review aturan, penutup.
+
+  CATATAN: fase tidak boleh dilompati. Setiap fase diakhiri build 0
+  warning + test hijau (bila ada) + ulasan bersama (pola 0-0-3).
+
+--------------------------------------------------------------------------------
+  J. RIWAYAT REVISI
+--------------------------------------------------------------------------------
+
+  v0.0.1 : 2026-08-07 - blueprint awal: struktur shell macOS sidebar kiri,
+           komponen tabel generik (pagination 5/25/50/75/100, sort asc/desc,
+           search live, preview, kolom relasi sebagai nama), alur login/
+           register/logout, alur CRUD + trash + isolasi toko, dashboard,
+           alur debugging, struktur folder frontend, urutan fase 1-11.
+   v0.0.2 : 2026-08-07 - selaras hasil audit trilogi: rujukan "FASE 13"
+           dikoreksi (fase hanya 0-11); catatan tabel global ditambahkan
+           di bagian A (baca semua, edit master sensitif hanya superuser)
+           dan bagian C (isolasi: tabel ber-toko vs global).
+
+  Terakhir diedit : 07-Agustus-2026
+  Oleh            : Kobo Kanaeru (asisten opencode) bersama pemilik proyek
+================================================================================

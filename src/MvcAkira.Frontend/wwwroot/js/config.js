@@ -1,0 +1,171 @@
+// KONFIGURASI tampilan tabel untuk semua target (halaman list generik).
+// `hapus: true` -> tombol Sampah (soft-delete) tampil; `readOnly` -> tanpa aksi tulis.
+window.KONFIGURASI = {
+  'dashboard': { label: 'Dashboard', route: 'dashboard' },
+  'meja_toko': {
+    route: 'meja_toko', label: 'Toko', kodeField: 'tokoCode', iso: false, sensitif: true, hapus: true,
+    kolom: [
+      { field: 'tokoName', label: 'Nama', sort: 'name' },
+      { field: 'tokoAddress', label: 'Alamat' },
+      { field: 'tokoEmail', label: 'Email' },
+      { field: 'tokoPhone', label: 'Telepon' },
+      { field: 'tokoCreatedat', label: 'Dibuat' },
+    ],
+    form: [
+      { field: 'tokoName', label: 'Nama' },
+      { field: 'tokoAddress', label: 'Alamat' },
+      { field: 'tokoEmail', label: 'Email', type: 'email' },
+      { field: 'tokoPhone', label: 'Telepon' },
+    ],
+    buat: (f) => WRITE.post('meja_toko', {
+      name: f.tokoName, address: f.tokoAddress, email: f.tokoEmail, phone: f.tokoPhone,
+    }),
+    ubah: (f) => WRITE.put('meja_toko', {
+      code: f.tokoCode, name: f.tokoName, address: f.tokoAddress, email: f.tokoEmail, phone: f.tokoPhone,
+    }),
+  },
+  'meja_pengguna': { route: 'meja_pengguna', label: 'Pengguna', kodeField: 'penggunaCode', hapus: true,
+    kolom: [
+      { field: 'penggunaEmail', label: 'Email', sort: 'email' },
+      { field: 'penggunaNonaktif', label: 'Status', sort: 'status', render: x => x ? 'nonaktif' : 'aktif' },
+      { field: 'penggunaCreatedat', label: 'Dibuat', sort: 'createdat' },
+    ],
+    form: [
+      { field: 'penggunaEmail', label: 'Email', type: 'email' },
+      { field: 'password', label: 'Password (isi saat tambah)' },
+      { field: 'penggunaNonaktif', label: 'Nonaktif (1=ya, 0=tidak)', type: 'number' },
+    ],
+    buat: (f) => WRITE.post('meja_pengguna', { email: f.penggunaEmail, password: f.password || '' }),
+    ubah: (f) => WRITE.put('meja_pengguna', {
+      code: f.penggunaCode, email: f.penggunaEmail, nonaktif: Number(f.penggunaNonaktif),
+    }),
+  },
+  'meja_biodata': { route: 'meja_biodata', label: 'Biodata', kodeField: 'biodataCode', iso: true, hapus: true,
+    kolom: [
+      { field: 'penggunaEmail', label: 'Email', sort: 'pengguna' },
+      { field: 'tokoName', label: 'Toko', sort: 'toko' },
+      { field: 'jabatanName', label: 'Jabatan', sort: 'jabatan' },
+      { field: 'biodataFullname', label: 'Nama', sort: 'nama' },
+      { field: 'biodataPhone', label: 'Telepon' },
+      { field: 'biodataCreatedat', label: 'Dibuat', sort: 'createdat' },
+    ],
+    form: [
+      { field: 'penggunaCode', label: 'Pengguna Code' },
+      { field: 'tokoCode', label: 'Toko Code' },
+      { field: 'jabatanCode', label: 'Jabatan Code' },
+      { field: 'biodataFullname', label: 'Nama Lengkap' },
+      { field: 'biodataBorn', label: 'Tanggal Lahir' },
+      { field: 'biodataAddress', label: 'Alamat' },
+      { field: 'biodataPhone', label: 'Telepon' },
+    ],
+    buat: (f) => WRITE.post('meja_biodata', {
+      penggunaCode: f.penggunaCode, tokoCode: f.tokoCode, jabatanCode: f.jabatanCode,
+      fullname: f.biodataFullname, born: f.biodataBorn, address: f.biodataAddress, phone: f.biodataPhone,
+    }),
+    ubah: (f) => WRITE.put('meja_biodata', {
+      code: f.biodataCode, fullname: f.biodataFullname, born: f.biodataBorn,
+      address: f.biodataAddress, phone: f.biodataPhone,
+    }),
+  },
+  'meja_jabatan': { route: 'meja_jabatan', label: 'Jabatan', kodeField: 'jabatanCode', sensitif: true, hapus: true,
+    kolom: [
+      { field: 'jabatanName', label: 'Nama', sort: 'name' },
+      { field: 'jabatanCreatedat', label: 'Dibuat' },
+    ],
+    form: [{ field: 'jabatanName', label: 'Nama' }],
+    buat: (f) => WRITE.post('meja_jabatan', JSON.stringify(f.jabatanName || ''), {
+      headers: { 'Content-Type': 'application/json' },
+    }),
+    ubah: (f) => WRITE.put('meja_jabatan', { code: f.jabatanCode, name: f.jabatanName }),
+  },
+  'meja_target': { route: 'meja_target', label: 'Target', kodeField: 'targetCode', sensitif: true, hapus: true,
+    kolom: [
+      { field: 'targetName', label: 'Nama', sort: 'name' },
+      { field: 'targetKeterangan', label: 'Keterangan', sort: 'keterangan' },
+    ],
+    form: [
+      { field: 'targetName', label: 'Nama' },
+      { field: 'targetKeterangan', label: 'Keterangan' },
+    ],
+    buat: (f) => WRITE.post('meja_target', {
+      name: f.targetName, keterangan: f.targetKeterangan,
+    }),
+    ubah: (f) => WRITE.put('meja_target', {
+      code: f.targetCode, name: f.targetName, keterangan: f.targetKeterangan,
+    }),
+  },
+  'meja_hakakses': { route: 'meja_hakakses', label: 'Hak Akses', kodeField: 'hakaksesCode', hapus: true,
+    kolom: [
+      { field: 'penggunaEmail', label: 'Email', sort: 'pengguna' },
+      { field: 'targetName', label: 'Target', sort: 'target' },
+      { field: 'hakaksesRead', label: 'Baca', render: x => x ? '✓' : '·' },
+      { field: 'hakaksesCreate', label: 'Buat', render: x => x ? '✓' : '·' },
+      { field: 'hakaksesUpdate', label: 'Ubah', render: x => x ? '✓' : '·' },
+      { field: 'hakaksesDelete', label: 'Hapus', render: x => x ? '✓' : '·' },
+    ],
+    form: [
+      { field: 'penggunaCode', label: 'Pengguna Code' },
+      { field: 'targetCode', label: 'Target Code' },
+      { field: 'hakaksesRead', label: 'Baca (1/0)', type: 'number' },
+      { field: 'hakaksesCreate', label: 'Buat (1/0)', type: 'number' },
+      { field: 'hakaksesUpdate', label: 'Ubah (1/0)', type: 'number' },
+      { field: 'hakaksesDelete', label: 'Hapus (1/0)', type: 'number' },
+      { field: 'hakaksesLogin', label: 'Login (1/0)', type: 'number' },
+    ],
+    buat: (f) => WRITE.post('meja_hakakses', {
+      penggunaCode: f.penggunaCode, targetCode: f.targetCode,
+      read: Number(f.hakaksesRead) || 0, create: Number(f.hakaksesCreate) || 0,
+      update: Number(f.hakaksesUpdate) || 0, delete: Number(f.hakaksesDelete) || 0,
+      login: Number(f.hakaksesLogin) || 0,
+    }),
+    ubah: (f) => WRITE.post('meja_hakakses', {
+      penggunaCode: f.penggunaCode, targetCode: f.targetCode,
+      read: Number(f.hakaksesRead) || 0, create: Number(f.hakaksesCreate) || 0,
+      update: Number(f.hakaksesUpdate) || 0, delete: Number(f.hakaksesDelete) || 0,
+      login: Number(f.hakaksesLogin) || 0,
+    }),
+  },
+  'meja_keuangan': { route: 'meja_keuangan', label: 'Keuangan', kodeField: 'keuanganCode', iso: true, hapus: true,
+    kolom: [
+      { field: 'penggunaEmail', label: 'Email', sort: 'pengguna' },
+      { field: 'tokoName', label: 'Toko', sort: 'toko' },
+      { field: 'keuanganNominal', label: 'Nominal', sort: 'nominal', render: x => Number(x).toLocaleString('id-ID') },
+      { field: 'keuanganStatus', label: 'Status', sort: 'status' },
+      { field: 'keuanganTempat', label: 'Tempat', sort: 'tempat' },
+      { field: 'keuanganJudul', label: 'Judul', sort: 'judul' },
+      { field: 'keuanganWaktucatat', label: 'Waktu', sort: 'waktu' },
+    ],
+    form: [
+      { field: 'penggunaCode', label: 'Pengguna Code' },
+      { field: 'tokoCode', label: 'Toko Code' },
+      { field: 'keuanganNominal', label: 'Nominal', type: 'number' },
+      { field: 'keuanganJudul', label: 'Judul' },
+      { field: 'keuanganDeskripsi', label: 'Deskripsi' },
+      { field: 'keuanganStatus', label: 'Status (masuk/keluar/hilang/pindah)' },
+      { field: 'keuanganTempat', label: 'Tempat (tunai/bank/ewallet/others)' },
+      { field: 'keuanganWaktucatat', label: 'Waktu Catat' },
+    ],
+    buat: (f) => WRITE.post('meja_keuangan', {
+      penggunaCode: f.penggunaCode, tokoCode: f.tokoCode, nominal: Number(f.keuanganNominal),
+      judul: f.keuanganJudul, deskripsi: f.keuanganDeskripsi, status: f.keuanganStatus,
+      tempat: f.keuanganTempat, waktucatat: f.keuanganWaktucatat,
+    }),
+    ubah: (f) => WRITE.put('meja_keuangan', {
+      code: f.keuanganCode, judul: f.keuanganJudul, deskripsi: f.keuanganDeskripsi,
+      status: f.keuanganStatus, tempat: f.keuanganTempat, waktucatat: f.keuanganWaktucatat,
+    }),
+  },
+  'meja_log': { route: 'meja_log', label: 'Log Audit', kodeField: 'logCode', readOnly: true,
+    kolom: [
+      { field: 'logCreatedat', label: 'Waktu', sort: 'waktu' },
+      { field: 'pelakuEmail', label: 'Pelaku', sort: 'pelaku' },
+      { field: 'logMencatat', label: 'Aksi', sort: 'aksi' },
+      { field: 'logOldvalue', label: 'Sebelum' },
+      { field: 'logNewvalue', label: 'Sesudah' },
+      { field: 'logTarget', label: 'Target', sort: 'target' },
+    ],
+    form: [], buat: null,
+  },
+};
+
+window.BATAS_HALAMAN = [5, 25, 50, 75, 100];
